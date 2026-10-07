@@ -1,10 +1,24 @@
 <!doctype html>
-<html lang="mr">
+<html lang="mr" translate="no" class="notranslate">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f766e" />
     <meta name="description" content="रुग्ण रांग व टोकन व्यवस्थापन प्रणाली" />
+
+    <!--
+      Do not machine-translate this application. It is intentionally Marathi-only
+      (spec §10): the token numerals are Devanagari, the patient names are
+      Devanagari, and the wording is what reception actually says out loud.
+
+      There is also a hard technical reason. Chrome's translator rewrites React's
+      text nodes into its own <font> wrappers, so the DOM no longer matches
+      React's virtual DOM. The next re-render — any button press, any realtime
+      update — then throws "NotFoundError: Failed to execute 'removeChild' on
+      'Node'", which unmounts the screen behind the error boundary. Opting out is
+      therefore required for the app to be usable at all, not a cosmetic choice.
+    -->
+    <meta name="google" content="notranslate" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
