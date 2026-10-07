@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Design tokens
+   ==========================================================================
+   A calm clinical teal, chosen because it reads as healthcare without the
+   alarm of red or the coldness of pure blue. Everything else is Tailwind's
+   default slate/amber/emerald scales.
+   ========================================================================== */
+@theme {
+  --font-sans:
+    'Noto Sans Devanagari', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-800: #115e59;
+  --color-brand-900: #134e4a;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+html {
+  /* Stop iOS Safari inflating text in landscape. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A single, highly visible focus ring across the whole app. Reception staff
+   work quickly and often by keyboard; the ring must never be subtle. */
+:focus-visible {
+  outline: 3px solid #0d9488; /* brand-600 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Patients and receptionists may both be using older, slower devices.
+   Animations are kept minimal, and removed entirely when the OS asks. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Components
+   ========================================================================== */
+
+/* Token numerals must never shift width as they count up — a jittering number
+   on a TV across the room is genuinely hard to read. */
+.token-digits {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1;
+}
+
+/* The one animation that earns its place: a brief pulse when the token on the
+   TV or the phone changes, so the change is noticed without being missed. */
+@keyframes token-flash {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.06);
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.token-flash {
+  animation: token-flash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-flash {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Print — the reception QR poster
+   ========================================================================== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Force the poster onto one page with its colours intact. */
+  .print-poster {
+    box-shadow: none !important;
+    border: 2px solid #0f766e !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    margin: 12mm;
+  }
+}

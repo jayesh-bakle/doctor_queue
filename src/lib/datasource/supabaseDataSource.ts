@@ -1,0 +1,349 @@
+/**
+ * Supabase-backed data source — the production implementation.
+ *
+ * Everything that touches patient data goes through an RPC rather than a table
+ * query, because the anon role has no privileges on `queue_entries` at all. The
+ * functions in `supabase/migrations/003_queue_functions.sql` are the API; this
+ * file is a thin, typed wrapper over them.
+ */
+
+import type {
+  CallNextResult,
+  DoctorRow,
+  HospitalRow,
+  PublicQueueResult,
+  QueueEntryRow,
+  QueueStatus,
+  RecallResult,
+  RegisterPatientResult,
+  StaffUserRow,
+  TokenStatusResult,
+} from '../../types/database'
+import type { DoctorOption, QueueEntryView } from '../../types/queue'
+import { AppError, logTechnicalError, toAppError } from '../errors'
+import { getSupabase } from '../supabase'
+import {
+  toDoctorOption,
+  toQueueEntryView,
+  type DoctorInput,
+  type HospitalSettingsInput,
+  type QueueDataSource,
+  type RegisterPatientInput,
+  type StaffSession,
+} from './types'
+
+/** Runs an RPC and converts any failure into an AppError carrying a known code. */
+async function callRpc<T>(
+  fn: string,
+  args: Record<string, unknown>,
+  context: string,
+): Promise<T> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.rpc(fn, args)
+
+  if (error) {
+    logTechnicalError(`${context} — rpc ${fn}`, error)
+    throw toAppError(error)
+  }
+
+  return data as T
+}
+
+/** RPCs declared `returns table (...)` come back as an array; take the first row. */
+function firstRow<T>(rows: T[] | null | undefined): T | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null
+  return rows[0] ?? null
+}
+
+async function fetchStaffSession(): Promise<StaffSession | null> {
+  const supabase = getSupabase()
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData?.user) return null
+
+  const { data, error } = await supabase
+    .from('staff_users')
+    .select('*')
+    .eq('id', userData.user.id)
+    .maybeSingle<StaffUserRow>()
+
+  if (error) {
+    logTechnicalError('fetchStaffSession', error)
+    return null
+  }
+  if (!data) return null
+
+  return {
+    userId: data.id,
+    email: userData.user.email ?? '',
+    fullName: data.full_name,
+    role: data.role,
+    hospitalId: data.hospital_id,
+  }
+}
+
+export const supabaseDataSource: QueueDataSource = {
+  kind: 'supabase',
+
+  // ---- doctors ----------------------------------------------------------
+
+  async listDoctors(options): Promise<DoctorOption[]> {
+    const supabase = getSupabase()
+    let query = supabase.from('doctors').select('*')
+
+    // Note: the anon role's RLS policy only exposes active doctors, so
+    // includeInactive is meaningful for staff only.
+    if (!options?.includeInactive) {
+      query = query.eq('is_active', true)
+    }
+
+    const { data, error } = await query
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true })
+      .returns<DoctorRow[]>()
+
+    if (error) {
+      logTechnicalError('listDoctors', error)
+      throw toAppError(error)
+    }
+
+    return (data ?? []).map(toDoctorOption)
+  },
+
+  async createDoctor(input: DoctorInput): Promise<DoctorOption> {
+    const supabase = getSupabase()
+    const staff = await fetchStaffSession()
+    if (!staff) throw new AppError('NOT_AUTHORIZED')
+
+    const { data, error } = await supabase
+      .from('doctors')
+      .insert({
+        hospital_id: staff.hospitalId,
+        name: input.name.trim(),
+        department: input.department.trim(),
+        room_number: input.roomNumber.trim(),
+        is_active: input.isActive,
+        display_order: input.displayOrder ?? 0,
+      })
+      .select('*')
+      .single<DoctorRow>()
+
+    if (error) {
+      logTechnicalError('createDoctor', error)
+      throw toAppError(error)
+    }
+
+    return toDoctorOption(data)
+  },
+
+  async updateDoctor(id: string, input: Partial<DoctorInput>): Promise<DoctorOption> {
+    const supabase = getSupabase()
+
+    const patch: Record<string, unknown> = {}
+    if (input.name !== undefined) patch.name = input.name.trim()
+    if (input.department !== undefined) patch.department = input.department.trim()
+    if (input.roomNumber !== undefined) patch.room_number = input.roomNumber.trim()
+    if (input.isActive !== undefined) patch.is_active = input.isActive
+    if (input.displayOrder !== undefined) patch.display_order = input.displayOrder
+
+    const { data, error } = await supabase
+      .from('doctors')
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single<DoctorRow>()
+
+    if (error) {
+      logTechnicalError('updateDoctor', error)
+      throw toAppError(error)
+    }
+
+    return toDoctorOption(data)
+  },
+
+  // ---- patient ----------------------------------------------------------
+
+  async registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult> {
+    const rows = await callRpc<RegisterPatientResult[]>(
+      'register_patient',
+      {
+        p_doctor_id: input.doctorId,
+        p_patient_name: input.patientName,
+        p_mobile: input.mobile,
+        p_patient_type: input.patientType,
+      },
+      'registerPatient',
+    )
+
+    const row = firstRow(rows)
+    if (!row) throw new AppError('UNKNOWN')
+    return row
+  },
+
+  async getTokenStatus(publicId: string): Promise<TokenStatusResult | null> {
+    const rows = await callRpc<TokenStatusResult[]>('get_token_status', { p_public_id: publicId }, 'getTokenStatus')
+    return firstRow(rows)
+  },
+
+  async getPublicQueue(doctorId: string): Promise<PublicQueueResult | null> {
+    const rows = await callRpc<PublicQueueResult[]>('get_public_queue', { p_doctor_id: doctorId }, 'getPublicQueue')
+    return firstRow(rows)
+  },
+
+  // ---- staff ------------------------------------------------------------
+
+  async signIn(email: string, password: string): Promise<StaffSession> {
+    const supabase = getSupabase()
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+
+    if (error) {
+      logTechnicalError('signIn', error)
+      throw new AppError('INVALID_CREDENTIALS', { cause: error })
+    }
+    if (!data.user) throw new AppError('INVALID_CREDENTIALS')
+
+    const session = await fetchStaffSession()
+    if (!session) {
+      // Authenticated, but no row in staff_users — an administrator has not
+      // linked this account to a hospital yet. Say so, rather than showing an
+      // empty dashboard and letting them wonder.
+      await supabase.auth.signOut()
+      throw new AppError('STAFF_NOT_LINKED')
+    }
+
+    return session
+  },
+
+  async signOut(): Promise<void> {
+    const supabase = getSupabase()
+    await supabase.auth.signOut()
+  },
+
+  async getCurrentStaff(): Promise<StaffSession | null> {
+    return fetchStaffSession()
+  },
+
+  // ---- queue ------------------------------------------------------------
+
+  async listQueue(doctorId: string, queueDate: string): Promise<QueueEntryView[]> {
+    const supabase = getSupabase()
+
+    const { data, error } = await supabase
+      .from('queue_entries')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .eq('queue_date', queueDate)
+      .order('token_number', { ascending: true })
+      .returns<QueueEntryRow[]>()
+
+    if (error) {
+      logTechnicalError('listQueue', error)
+      throw toAppError(error)
+    }
+
+    return (data ?? []).map(toQueueEntryView)
+  },
+
+  async callNext(doctorId: string): Promise<CallNextResult | null> {
+    const rows = await callRpc<CallNextResult[]>('call_next_patient', { p_doctor_id: doctorId }, 'callNext')
+    // An empty result means nobody is waiting — a normal outcome, not an error.
+    return firstRow(rows)
+  },
+
+  async recall(publicId: string): Promise<RecallResult> {
+    const rows = await callRpc<RecallResult[]>('recall_patient', { p_public_id: publicId }, 'recall')
+    const row = firstRow(rows)
+    if (!row) throw new AppError('TOKEN_NOT_FOUND')
+    return row
+  },
+
+  async startConsultation(publicId: string): Promise<void> {
+    await callRpc<QueueStatus>('start_consultation', { p_public_id: publicId }, 'startConsultation')
+  },
+
+  async skip(publicId: string): Promise<void> {
+    await callRpc<QueueStatus>('skip_patient', { p_public_id: publicId }, 'skip')
+  },
+
+  async complete(publicId: string): Promise<void> {
+    await callRpc<QueueStatus>('complete_patient', { p_public_id: publicId }, 'complete')
+  },
+
+  // ---- hospital ---------------------------------------------------------
+
+  async getHospital(): Promise<HospitalRow | null> {
+    const supabase = getSupabase()
+
+    // Single-hospital deployment, so "the hospital" is unambiguous. A
+    // multi-branch installation would scope this by the staff member's
+    // hospital_id or by the doctor being viewed.
+    const { data, error } = await supabase
+      .from('hospitals')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle<HospitalRow>()
+
+    if (error) {
+      logTechnicalError('getHospital', error)
+      return null
+    }
+
+    return data ?? null
+  },
+
+  async updateHospital(input: HospitalSettingsInput): Promise<void> {
+    const supabase = getSupabase()
+    const staff = await fetchStaffSession()
+    if (!staff) throw new AppError('NOT_AUTHORIZED')
+
+    const { error } = await supabase
+      .from('hospitals')
+      .update({
+        name: input.name.trim(),
+        address: input.address,
+        phone: input.phone,
+        timezone: input.timezone,
+        announcement_enabled: input.announcementEnabled,
+        display_message: input.displayMessage,
+        avg_consultation_minutes: input.avgConsultationMinutes,
+      })
+      .eq('id', staff.hospitalId)
+
+    if (error) {
+      logTechnicalError('updateHospital', error)
+      throw toAppError(error)
+    }
+  },
+
+  // ---- realtime ---------------------------------------------------------
+
+  subscribeToQueue(doctorId: string, onChange: () => void): () => void {
+    const supabase = getSupabase()
+
+    const channel = supabase
+      .channel(`queue-events:${doctorId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'queue_events',
+          filter: `doctor_id=eq.${doctorId}`,
+        },
+        () => onChange(),
+      )
+      .subscribe((status) => {
+        // After a reconnect the client has missed whatever happened while it was
+        // away, so re-read once rather than waiting for the next event.
+        if (status === 'SUBSCRIBED') onChange()
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  },
+}
