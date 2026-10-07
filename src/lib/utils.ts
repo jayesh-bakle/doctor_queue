@@ -49,6 +49,52 @@ const WEEKDAY_INDEX: Record<string, number> = {
   Sat: 6,
 }
 
+/** The timezone used when the configured one is unusable. */
+export const DEFAULT_TIME_ZONE = 'Asia/Kolkata'
+
+/**
+ * Memoised check that `timeZone` is an IANA zone this runtime understands.
+ *
+ * `Intl` throws a RangeError for anything it does not recognise, and the value
+ * arrives from a free-text field in Settings. The cache keeps the check off the
+ * hot path — `resolveTimeZone` runs once per row of the dashboard table.
+ */
+const KNOWN_TIME_ZONES = new Map<string, boolean>()
+
+export function isValidTimeZone(timeZone: string): boolean {
+  const cached = KNOWN_TIME_ZONES.get(timeZone)
+  if (cached !== undefined) return cached
+
+  let valid: boolean
+  try {
+    // Construction alone is enough to throw, but formatting proves the zone is
+    // genuinely usable rather than merely parseable.
+    new Intl.DateTimeFormat('en-US', { timeZone }).format(0)
+    valid = true
+  } catch {
+    valid = false
+  }
+
+  KNOWN_TIME_ZONES.set(timeZone, valid)
+  return valid
+}
+
+/**
+ * The timezone to actually format with: the configured one when it is usable,
+ * the default otherwise.
+ *
+ * A single mistyped character in Settings would otherwise make `Intl` throw on
+ * every screen that shows a date — reception, the dashboard and the TV at once —
+ * because the error happens during render. A clock that is briefly wrong is a
+ * far smaller failure than a clinic that cannot see its own queue, so degrade to
+ * the default here and let the settings form report the mistake where it can
+ * still be corrected.
+ */
+export function resolveTimeZone(timeZone: string | null | undefined): string {
+  const candidate = (timeZone ?? '').trim()
+  return isValidTimeZone(candidate) ? candidate : DEFAULT_TIME_ZONE
+}
+
 export interface MarathiDateParts {
   day: number
   monthIndex: number
@@ -61,7 +107,7 @@ export function marathiDateParts(date: Date, timeZone: string): MarathiDateParts
   if (Number.isNaN(date.getTime())) return null
 
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
+    timeZone: resolveTimeZone(timeZone),
     weekday: 'short',
     day: 'numeric',
     month: 'numeric',
@@ -85,7 +131,7 @@ export function formatTime(iso: string | Date, timeZone: string): string {
   const date = typeof iso === 'string' ? new Date(iso) : iso
   if (Number.isNaN(date.getTime())) return ''
   const formatted = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
+    timeZone: resolveTimeZone(timeZone),
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -122,7 +168,7 @@ export function formatDateWithWeekday(iso: string | Date, timeZone: string): str
  */
 export function todayInTimeZone(timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone,
+    timeZone: resolveTimeZone(timeZone),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

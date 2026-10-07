@@ -6,7 +6,8 @@ import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { ErrorState, LoadingState } from '../components/common/Feedback'
 import { useHospital } from '../hooks/useHospital'
 import { dataSource } from '../lib/datasource'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { ERROR_MESSAGES, logTechnicalError, toMarathiError } from '../lib/errors'
+import { DEFAULT_TIME_ZONE, isValidTimeZone } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 
 const INPUT_CLASSES =
@@ -61,6 +62,18 @@ export function SettingsPage() {
     event.preventDefault()
     if (submitting) return
 
+    // A timezone the browser cannot parse makes `Intl` throw on every screen that
+    // shows a date — reception, the dashboard and the TV at once — so refuse it
+    // here, where it can still be corrected, rather than saving it and finding
+    // out at the next page load. `resolveTimeZone` keeps the app standing either
+    // way, but a silently-ignored setting would be worse than a rejected one.
+    const trimmedTimeZone = timezone.trim() || DEFAULT_TIME_ZONE
+    if (!isValidTimeZone(trimmedTimeZone)) {
+      setSaved(false)
+      setError(ERROR_MESSAGES.INVALID_TIME_ZONE)
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     setSaved(false)
@@ -71,7 +84,7 @@ export function SettingsPage() {
         name,
         address: address.trim() === '' ? null : address.trim(),
         phone: phone.trim() === '' ? null : phone.trim(),
-        timezone: timezone.trim() || 'Asia/Kolkata',
+        timezone: trimmedTimeZone,
         announcementEnabled,
         displayMessage,
         avgConsultationMinutes:
