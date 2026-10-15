@@ -77,6 +77,8 @@ export function TokenDisplay({
         </p>
       ) : null}
 
+      {/* `aria-live` so a screen reader announces the new number, in whichever
+          language the interface is currently writing it. */}
       <div
         className={cn(
           'token-digits font-extrabold',
@@ -84,7 +86,6 @@ export function TokenDisplay({
           SIZE_CLASSES[size],
           flashing && 'token-flash',
         )}
-        {/* Screen readers should hear the number as the chosen language writes it. */}
         aria-live={animate ? 'polite' : undefined}
         aria-atomic="true"
       >

@@ -24,16 +24,42 @@ export interface RegistrationInput {
 
 export type RegistrationField = 'patientName' | 'mobile' | 'doctorId'
 
+/**
+ * The failure, as a machine code.
+ *
+ * The rules below produce codes, not sentences. That split matters twice over:
+ * the demo backend needs only to know *which* rule failed so it can raise the
+ * same code the SQL function would, and it has no language to phrase a sentence
+ * in; while the form needs a sentence in whatever language the patient chose.
+ */
+export type RegistrationErrorCode =
+  | 'NAME_REQUIRED'
+  | 'NAME_TOO_LONG'
+  | 'INVALID_MOBILE'
+  | 'DOCTOR_REQUIRED'
+
+export type RegistrationErrorCodes = Partial<Record<RegistrationField, RegistrationErrorCode>>
+
+/** Cleaned values, ready to send to the server. */
+export interface NormalisedRegistration {
+  patientName: string
+  mobile: string | null
+  doctorId: string
+  patientType: PatientType
+}
+
+/** The outcome of the rules, before any language is involved. */
+export interface FieldValidationResult {
+  valid: boolean
+  errorCodes: RegistrationErrorCodes
+  normalised: NormalisedRegistration
+}
+
 export interface ValidationResult {
   valid: boolean
   errors: Partial<Record<RegistrationField, string>>
   /** Cleaned values, ready to send to the server. */
-  normalised: {
-    patientName: string
-    mobile: string | null
-    doctorId: string
-    patientType: PatientType
-  }
+  normalised: NormalisedRegistration
 }
 
 /**
@@ -66,6 +92,48 @@ export function formatMobileForDisplay(mobile: string | null): string {
 }
 
 /**
+ * Applies the registration rules and reports the failures as codes.
+ *
+ * This is the single copy of the rules. {@link validateRegistration} wraps it to
+ * add the wording; the demo backend calls it directly, because it needs the code
+ * to raise and has no language to phrase anything in.
+ */
+export function validateRegistrationFields(input: RegistrationInput): FieldValidationResult {
+  const errorCodes: RegistrationErrorCodes = {}
+
+  const patientName = normaliseName(input.patientName)
+  if (patientName === '') {
+    errorCodes.patientName = 'NAME_REQUIRED'
+  } else if (patientName.length > MAX_NAME_LENGTH) {
+    errorCodes.patientName = 'NAME_TOO_LONG'
+  }
+
+  const mobile = normaliseMobile(input.mobile)
+  // Empty is fine — mobile is optional. But something *typed* that does not
+  // reduce to a valid number is an error, not an absence: stripping "nonsense"
+  // down to nothing and accepting it would silently discard what was entered.
+  if (input.mobile.trim() !== '' && (mobile === null || !isValidMobile(mobile))) {
+    errorCodes.mobile = 'INVALID_MOBILE'
+  }
+
+  const doctorId = input.doctorId.trim()
+  if (doctorId === '') {
+    errorCodes.doctorId = 'DOCTOR_REQUIRED'
+  }
+
+  return {
+    valid: Object.keys(errorCodes).length === 0,
+    errorCodes,
+    normalised: {
+      patientName,
+      mobile,
+      doctorId,
+      patientType: input.patientType,
+    },
+  }
+}
+
+/**
  * Validates a registration and returns the problems already phrased in the
  * reader's language.
  *
@@ -77,36 +145,12 @@ export function validateRegistration(
   input: RegistrationInput,
   messages: Messages,
 ): ValidationResult {
+  const { valid, errorCodes, normalised } = validateRegistrationFields(input)
+
   const errors: Partial<Record<RegistrationField, string>> = {}
+  if (errorCodes.patientName) errors.patientName = messages.errors[errorCodes.patientName]
+  if (errorCodes.mobile) errors.mobile = messages.errors[errorCodes.mobile]
+  if (errorCodes.doctorId) errors.doctorId = messages.errors[errorCodes.doctorId]
 
-  const patientName = normaliseName(input.patientName)
-  if (patientName === '') {
-    errors.patientName = messages.errors.NAME_REQUIRED
-  } else if (patientName.length > MAX_NAME_LENGTH) {
-    errors.patientName = messages.errors.NAME_TOO_LONG
-  }
-
-  const mobile = normaliseMobile(input.mobile)
-  // Empty is fine — mobile is optional. But something *typed* that does not
-  // reduce to a valid number is an error, not an absence: stripping "nonsense"
-  // down to nothing and accepting it would silently discard what was entered.
-  if (input.mobile.trim() !== '' && (mobile === null || !isValidMobile(mobile))) {
-    errors.mobile = messages.errors.INVALID_MOBILE
-  }
-
-  const doctorId = input.doctorId.trim()
-  if (doctorId === '') {
-    errors.doctorId = messages.errors.DOCTOR_REQUIRED
-  }
-
-  return {
-    valid: Object.keys(errors).length === 0,
-    errors,
-    normalised: {
-      patientName,
-      mobile,
-      doctorId,
-      patientType: input.patientType,
-    },
-  }
+  return { valid, errors, normalised }
 }

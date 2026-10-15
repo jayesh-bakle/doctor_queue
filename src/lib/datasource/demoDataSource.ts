@@ -9,7 +9,7 @@
  * Two deliberate design choices:
  *
  * - It uses the SAME pure helpers as the real app (`deriveSnapshot`,
- *   `countPatientsAhead`, `validateRegistration`) rather than reimplementing
+ *   `countPatientsAhead`, `validateRegistrationFields`) rather than reimplementing
  *   the queue rules. A demo that behaves differently from production is worse
  *   than no demo, because it teaches the staff the wrong thing.
  *
@@ -44,7 +44,7 @@ import {
   type MinimalEntry,
 } from '../queue'
 import { normaliseName, randomId, todayInTimeZone } from '../utils'
-import { normaliseMobile, validateRegistration, MAX_NAME_LENGTH } from '../validation'
+import { normaliseMobile, validateRegistrationFields } from '../validation'
 import { toDoctorOption, toQueueEntryView, type DoctorInput, type HospitalSettingsInput, type QueueDataSource, type RegisterPatientInput, type StaffSession } from './types'
 
 // ---------------------------------------------------------------------------
@@ -405,8 +405,10 @@ export const demoDataSource: QueueDataSource = {
       const state = readState()
 
       // Same validation the SQL function applies, from the same module the form
-      // uses, so the demo cannot drift from production behaviour.
-      const validation = validateRegistration({
+      // uses, so the demo cannot drift from production behaviour. The rules
+      // report codes, not sentences — the wording depends on the reader's
+      // language, which this layer deliberately knows nothing about.
+      const validation = validateRegistrationFields({
         patientName: input.patientName,
         mobile: input.mobile ?? '',
         doctorId: input.doctorId,
@@ -414,14 +416,12 @@ export const demoDataSource: QueueDataSource = {
       })
       if (!validation.valid) {
         // Surface the specific code the SQL function would have raised, so the
-        // demo shows the same Marathi message as production.
-        const code = validation.errors.patientName
-          ? validation.normalised.patientName.length > MAX_NAME_LENGTH
-            ? 'NAME_TOO_LONG'
-            : 'NAME_REQUIRED'
-          : validation.errors.mobile
-            ? 'INVALID_MOBILE'
-            : 'DOCTOR_REQUIRED'
+        // demo raises exactly what production raises.
+        const code =
+          validation.errorCodes.patientName ??
+          validation.errorCodes.mobile ??
+          validation.errorCodes.doctorId ??
+          'DOCTOR_REQUIRED'
         throw new AppError(code)
       }
 
