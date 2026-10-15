@@ -2,6 +2,8 @@ import { ClipboardList, LogIn, HeartPulse } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 
 /**
  * The entry point, deliberately reduced to two choices.
@@ -12,6 +14,8 @@ import { useHospital } from '../hooks/useHospital'
  */
 export function HomePage() {
   const { hospital } = useHospital()
+  const { messages } = useLanguage()
+  const t = messages.ui.home
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-slate-50 px-4 py-10">
@@ -21,9 +25,9 @@ export function HomePage() {
             <HeartPulse className="size-8" aria-hidden="true" />
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900">
-            {hospital?.name ?? 'आपल्या रुग्णालयाचे नाव'}
+            {hospital?.name ?? messages.ui.common.hospitalFallback}
           </h1>
-          <p className="mt-1 text-base text-slate-600">रुग्ण रांग व्यवस्थापन</p>
+          <p className="mt-1 text-base text-slate-600">{messages.ui.common.queueSystem}</p>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -33,8 +37,8 @@ export function HomePage() {
           >
             <ClipboardList className="size-8 shrink-0" aria-hidden="true" />
             <span className="flex flex-col">
-              <span className="text-xl font-bold">रांगेत नोंदणी करा</span>
-              <span className="text-sm text-brand-100">टोकन मिळवा आणि रांग पाहा</span>
+              <span className="text-xl font-bold">{t.register}</span>
+              <span className="text-sm text-brand-100">{t.registerHint}</span>
             </span>
           </Link>
 
@@ -44,10 +48,17 @@ export function HomePage() {
           >
             <LogIn className="size-8 shrink-0" aria-hidden="true" />
             <span className="flex flex-col">
-              <span className="text-xl font-bold">रिसेप्शन लॉगिन</span>
-              <span className="text-sm text-slate-500">रुग्णांना बोलवण्यासाठी</span>
+              <span className="text-xl font-bold">{t.staffLogin}</span>
+              <span className="text-sm text-slate-500">{t.staffLoginHint}</span>
             </span>
           </Link>
+        </div>
+
+        {/* This page sits outside every layout, so it carries the switcher itself —
+            otherwise someone who cannot read Marathi has no way to change the
+            language before choosing between the two buttons above. */}
+        <div className="mt-8 flex justify-center">
+          <LanguageSwitcher />
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { dataSource } from '../lib/datasource'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserErrorCode, type AppErrorCode } from '../lib/errors'
 import type { PublicQueueResult } from '../types/database'
+import { useLanguage } from './useLanguage'
 import { useRealtimeQueue } from './useRealtimeQueue'
 
 export interface UsePublicQueueResult {
@@ -22,10 +23,11 @@ export interface UsePublicQueueResult {
  * because the data never arrives.
  */
 export function usePublicQueue(doctorId: string | undefined): UsePublicQueueResult {
+  const { messages } = useLanguage()
   const [data, setData] = useState<PublicQueueResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<AppErrorCode | null>(null)
 
   const mountedRef = useRef(true)
   useEffect(() => {
@@ -52,11 +54,11 @@ export function usePublicQueue(doctorId: string | undefined): UsePublicQueueResu
         setNotFound(false)
         setData(result)
       }
-      setError(null)
+      setErrorCode(null)
     } catch (caught) {
       if (!mountedRef.current) return
       logTechnicalError('usePublicQueue', caught)
-      setError(toMarathiError(caught))
+      setErrorCode(toUserErrorCode(caught))
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -68,5 +70,5 @@ export function usePublicQueue(doctorId: string | undefined): UsePublicQueueResu
 
   useRealtimeQueue(doctorId, refresh)
 
-  return { data, loading, notFound, error, refresh }
+  return { data, loading, notFound, error: errorCode ? messages.errors[errorCode] : null, refresh }
 }

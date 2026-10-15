@@ -1,6 +1,7 @@
 import { Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
+import { useLanguage } from '../../hooks/useLanguage'
 import {
   getSpeechStatus,
   isAnnouncementEnabled,
@@ -14,19 +15,26 @@ import {
 import { cn } from '../../lib/utils'
 
 /**
- * The "आवाज सुरू / आवाज बंद" control (spec §13).
+ * The sound on/off control (spec §13).
  *
  * The label states what the button will do, not the current state, which is
  * what a person reaching for it actually needs to know.
+ *
+ * The language matters here in a way it does not elsewhere: the voice has to
+ * match the language the announcement is written in, so switching the interface
+ * to English asks the browser for an English voice, and the "no voice for this
+ * language" note is re-evaluated rather than left over from the previous choice.
  */
 export function AnnouncementToggle({ className }: { className?: string }) {
+  const { language, messages } = useLanguage()
   const [enabled, setEnabled] = useState(() => isAnnouncementEnabled())
-  const [status, setStatus] = useState<SpeechStatus>(() => getSpeechStatus())
+  const [status, setStatus] = useState<SpeechStatus>(() => getSpeechStatus(language))
 
   useEffect(() => {
+    setStatus(getSpeechStatus(language))
     // Chrome populates its voice list asynchronously; re-check when it lands.
-    return onVoicesChanged(() => setStatus(getSpeechStatus()))
-  }, [])
+    return onVoicesChanged(() => setStatus(getSpeechStatus(language)))
+  }, [language])
 
   const toggle = useCallback(() => {
     const next = !enabled
@@ -37,9 +45,9 @@ export function AnnouncementToggle({ className }: { className?: string }) {
       // A click is a user gesture, which is exactly what mobile browsers
       // require before they will allow speech at all.
       primeSpeech()
-      speak('आवाज सुरू केला आहे.', { force: true })
+      speak(messages.ui.announcement.turnedOnSpoken, { force: true, language })
     }
-  }, [enabled])
+  }, [enabled, language, messages])
 
   const supported = isSpeechSupported() && status.supported
 
@@ -61,19 +69,15 @@ export function AnnouncementToggle({ className }: { className?: string }) {
         ) : (
           <VolumeX className="size-4" aria-hidden="true" />
         )}
-        {enabled ? 'आवाज बंद करा' : 'आवाज सुरू करा'}
+        {enabled ? messages.ui.announcement.turnOff : messages.ui.announcement.turnOn}
       </button>
 
       {enabled && !supported ? (
-        <p className="max-w-xs text-xs text-slate-500">
-          या ब्राउझरमध्ये मराठी आवाज उपलब्ध नाही. रांग मात्र योग्य चालू राहील.
-        </p>
+        <p className="max-w-xs text-xs text-slate-500">{messages.ui.announcement.unsupported}</p>
       ) : null}
 
       {enabled && supported && status.usingFallback ? (
-        <p className="max-w-xs text-xs text-amber-700">
-          मराठी आवाज सापडला नाही — हिंदी आवाज वापरला जाईल. उच्चार थोडा वेगळा असू शकतो.
-        </p>
+        <p className="max-w-xs text-xs text-amber-700">{messages.ui.announcement.fallbackVoice}</p>
       ) : null}
     </div>
   )

@@ -1,7 +1,7 @@
 import { Bell, CheckCircle2, Clock, MinusCircle, Stethoscope } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { STATUS_LABELS } from '../../lib/queue'
+import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 import type { QueueStatus } from '../../types/database'
 
@@ -11,9 +11,12 @@ interface StatusStyle {
 }
 
 /**
- * Every status carries its own icon and its own Marathi word, so the meaning
- * survives greyscale printing, colour-blindness and a washed-out clinic
- * monitor. Colour is reinforcement, never the message (spec §36).
+ * Every status carries its own icon and its own word, so the meaning survives
+ * greyscale printing, colour-blindness and a washed-out clinic monitor. Colour is
+ * reinforcement, never the message (spec §36).
+ *
+ * The word comes from the message catalogue, but the icon and the colour pair do
+ * not: those are keyed on the machine status, which never changes with language.
  */
 const STATUS_STYLES: Record<QueueStatus, StatusStyle> = {
   WAITING: {
@@ -44,6 +47,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const { messages } = useLanguage()
   const style = STATUS_STYLES[status]
 
   return (
@@ -55,7 +59,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       )}
     >
       {style.icon}
-      {STATUS_LABELS[status]}
+      {messages.status[status]}
     </span>
   )
 }

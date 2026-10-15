@@ -95,15 +95,20 @@ export function resolveTimeZone(timeZone: string | null | undefined): string {
   return isValidTimeZone(candidate) ? candidate : DEFAULT_TIME_ZONE
 }
 
-export interface MarathiDateParts {
+export interface DateParts {
   day: number
   monthIndex: number
   year: number
   weekdayIndex: number
 }
 
-/** Splits an instant into hospital-local calendar parts. */
-export function marathiDateParts(date: Date, timeZone: string): MarathiDateParts | null {
+/**
+ * Splits an instant into hospital-local calendar parts.
+ *
+ * The output is language-neutral — day, month index, year, weekday index — so
+ * every locale can render it with its own month and weekday names.
+ */
+export function dateParts(date: Date, timeZone: string): DateParts | null {
   if (Number.isNaN(date.getTime())) return null
 
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -139,10 +144,10 @@ export function formatTime(iso: string | Date, timeZone: string): string {
   return toMarathiDigits(formatted, 0)
 }
 
-/** `६ ऑक्टोबर २०२६` */
+/** `६ ऑक्टोबर २०२६` — the Marathi rendering; other locales build their own. */
 export function formatDate(iso: string | Date, timeZone: string): string {
   const date = typeof iso === 'string' ? new Date(iso) : iso
-  const parts = marathiDateParts(date, timeZone)
+  const parts = dateParts(date, timeZone)
   if (!parts) return ''
   return `${toMarathiDigits(parts.day, 0)} ${MARATHI_MONTHS[parts.monthIndex]} ${toMarathiDigits(
     parts.year,
@@ -150,10 +155,10 @@ export function formatDate(iso: string | Date, timeZone: string): string {
   )}`
 }
 
-/** `सोमवार, ६ ऑक्टोबर २०२६` — used in the dashboard and TV headers. */
+/** `सोमवार, ६ ऑक्टोबर २०२६` — Marathi; used in the dashboard and TV headers. */
 export function formatDateWithWeekday(iso: string | Date, timeZone: string): string {
   const date = typeof iso === 'string' ? new Date(iso) : iso
-  const parts = marathiDateParts(date, timeZone)
+  const parts = dateParts(date, timeZone)
   if (!parts) return ''
   return `${MARATHI_WEEKDAYS[parts.weekdayIndex]}, ${toMarathiDigits(parts.day, 0)} ${
     MARATHI_MONTHS[parts.monthIndex]

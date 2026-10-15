@@ -1,6 +1,7 @@
 import { AlertCircle } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 
+import { useLanguage } from '../../hooks/useLanguage'
 import { cn, normaliseName } from '../../lib/utils'
 import type { DoctorOption } from '../../types/queue'
 import { Button } from '../common/Button'
@@ -35,13 +36,16 @@ export function DoctorForm({
   submitting,
   onSubmit,
   onCancel,
-  submitLabel = 'जतन करा',
+  submitLabel,
 }: DoctorFormProps) {
   const nameId = useId()
   const departmentId = useId()
   const roomId = useId()
   const activeId = useId()
   const errorId = useId()
+
+  const { messages } = useLanguage()
+  const t = messages.ui.doctorForm
 
   const [name, setName] = useState(initial?.name ?? '')
   const [department, setDepartment] = useState(initial?.department ?? '')
@@ -55,7 +59,7 @@ export function DoctorForm({
 
     const trimmedName = normaliseName(name)
     if (trimmedName === '') {
-      setError('कृपया डॉक्टरांचे नाव भरा.')
+      setError(t.nameRequired)
       return
     }
 
@@ -73,13 +77,13 @@ export function DoctorForm({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor={nameId} className="text-sm font-semibold text-slate-800">
-            डॉक्टरांचे नाव <span className="text-red-600">*</span>
+            {t.nameLabel} <span className="text-red-600">*</span>
           </label>
           <input
             id={nameId}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="उदा. डॉ. अमोल देशमुख"
+            placeholder={t.namePlaceholder}
             maxLength={120}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
@@ -89,13 +93,13 @@ export function DoctorForm({
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor={departmentId} className="text-sm font-semibold text-slate-800">
-            विभाग
+            {t.departmentLabel}
           </label>
           <input
             id={departmentId}
             value={department}
             onChange={(event) => setDepartment(event.target.value)}
-            placeholder="उदा. सामान्य वैद्यक"
+            placeholder={t.departmentPlaceholder}
             maxLength={80}
             className={INPUT_CLASSES}
           />
@@ -103,13 +107,13 @@ export function DoctorForm({
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor={roomId} className="text-sm font-semibold text-slate-800">
-            कक्ष क्रमांक
+            {t.roomLabel}
           </label>
           <input
             id={roomId}
             value={roomNumber}
             onChange={(event) => setRoomNumber(event.target.value)}
-            placeholder="उदा. १"
+            placeholder={t.roomPlaceholder}
             maxLength={16}
             className={INPUT_CLASSES}
           />
@@ -127,9 +131,7 @@ export function DoctorForm({
           onChange={(event) => setIsActive(event.target.checked)}
           className="size-5 accent-brand-700"
         />
-        <span className="text-sm font-medium text-slate-800">
-          रांग सुरू (नोंदणी फॉर्ममध्ये दिसेल)
-        </span>
+        <span className="text-sm font-medium text-slate-800">{t.activeLabel}</span>
       </label>
 
       {error ? (
@@ -145,11 +147,11 @@ export function DoctorForm({
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" loading={submitting}>
-          {submitLabel}
+          {submitLabel ?? t.save}
         </Button>
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
-            रद्द करा
+            {messages.ui.common.cancel}
           </Button>
         ) : null}
       </div>

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { dataSource } from '../lib/datasource'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserErrorCode, type AppErrorCode } from '../lib/errors'
 import type { QueueEntryView } from '../types/queue'
+import { useLanguage } from './useLanguage'
 import { useRealtimeQueue } from './useRealtimeQueue'
 
 export interface UseQueueResult {
@@ -21,9 +22,10 @@ export interface UseQueueResult {
  * doctors, when there is genuinely nothing to show yet.
  */
 export function useQueue(doctorId: string | null, queueDate: string): UseQueueResult {
+  const { messages } = useLanguage()
   const [entries, setEntries] = useState<QueueEntryView[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<AppErrorCode | null>(null)
 
   const mountedRef = useRef(true)
   useEffect(() => {
@@ -51,11 +53,11 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
       const rows = await dataSource.listQueue(doctorId, queueDate)
       if (!mountedRef.current) return
       setEntries(rows)
-      setError(null)
+      setErrorCode(null)
     } catch (caught) {
       if (!mountedRef.current) return
       logTechnicalError('useQueue', caught)
-      setError(toMarathiError(caught))
+      setErrorCode(toUserErrorCode(caught))
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -67,5 +69,5 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
 
   useRealtimeQueue(doctorId, refresh)
 
-  return { entries, loading, error, refresh }
+  return { entries, loading, error: errorCode ? messages.errors[errorCode] : null, refresh }
 }

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { dataSource } from '../lib/datasource'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserErrorCode, type AppErrorCode } from '../lib/errors'
 import type { TokenStatusResult } from '../types/database'
+import { useLanguage } from './useLanguage'
 import { useRealtimeQueue } from './useRealtimeQueue'
 
 export interface UseTokenStatusResult {
@@ -28,10 +29,11 @@ export interface UseTokenStatusResult {
  * being able to see another patient.
  */
 export function useTokenStatus(publicId: string | undefined): UseTokenStatusResult {
+  const { messages } = useLanguage()
   const [data, setData] = useState<TokenStatusResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<AppErrorCode | null>(null)
   const [doctorId, setDoctorId] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
@@ -51,10 +53,10 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
         setData(result)
         setDoctorId((current) => (current === result.doctor_id ? current : result.doctor_id))
       }
-      setError(null)
+      setErrorCode(null)
     } catch (caught) {
       logTechnicalError('useTokenStatus', caught)
-      setError(toMarathiError(caught))
+      setErrorCode(toUserErrorCode(caught))
     } finally {
       setLoading(false)
     }
@@ -66,5 +68,5 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
 
   useRealtimeQueue(doctorId, refresh)
 
-  return { data, loading, notFound, error, refresh }
+  return { data, loading, notFound, error: errorCode ? messages.errors[errorCode] : null, refresh }
 }

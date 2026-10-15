@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { formatToken } from '../../lib/marathiDigits'
+import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 
 type TokenSize = 'md' | 'lg' | 'xl' | 'display'
@@ -33,9 +33,12 @@ interface TokenDisplayProps {
 }
 
 /**
- * A token number, rendered the only way a patient should ever see it: in
- * Marathi numerals, zero-padded, with tabular figures so the width never jumps
- * as it counts up.
+ * A token number, rendered the only way a patient should ever see it: zero-padded
+ * to three digits, with tabular figures so the width never jumps as it counts up.
+ *
+ * The numerals follow the interface language — `०२७` in Marathi and Hindi, `027`
+ * in English (spec §8). The padding does not: the token is always three digits
+ * wide, so it occupies the same space whichever language is on screen.
  *
  * When the number changes the component briefly scales and brightens. On a TV
  * that is the difference between a patient noticing their turn and missing it
@@ -50,6 +53,7 @@ export function TokenDisplay({
   animate = true,
   tone = 'dark',
 }: TokenDisplayProps) {
+  const { messages } = useLanguage()
   const [flashing, setFlashing] = useState(false)
   const previousRef = useRef<number | null>(token)
 
@@ -80,14 +84,14 @@ export function TokenDisplay({
           SIZE_CLASSES[size],
           flashing && 'token-flash',
         )}
-        // Screen readers should hear the Marathi number, not the digits.
+        {/* Screen readers should hear the number as the chosen language writes it. */}
         aria-live={animate ? 'polite' : undefined}
         aria-atomic="true"
       >
         {token === null ? (
           <span className="text-slate-300">{emptyText}</span>
         ) : (
-          formatToken(token)
+          messages.token(token)
         )}
       </div>
     </div>

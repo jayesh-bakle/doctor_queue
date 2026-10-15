@@ -9,8 +9,8 @@
  */
 
 import type { PatientType } from '../types/database'
+import type { Messages } from './i18n/types'
 import { toEnglishDigits } from './marathiDigits'
-import { ERROR_MESSAGES } from './errors'
 import { normaliseName } from './utils'
 
 export const MAX_NAME_LENGTH = 120
@@ -65,14 +65,25 @@ export function formatMobileForDisplay(mobile: string | null): string {
   return `${mobile.slice(0, 5)} ${mobile.slice(5)}`
 }
 
-export function validateRegistration(input: RegistrationInput): ValidationResult {
+/**
+ * Validates a registration and returns the problems already phrased in the
+ * reader's language.
+ *
+ * `messages` is passed in rather than imported so the validation rules stay
+ * language-agnostic — they are the same in Marathi, Hindi and English, and only
+ * the sentences differ.
+ */
+export function validateRegistration(
+  input: RegistrationInput,
+  messages: Messages,
+): ValidationResult {
   const errors: Partial<Record<RegistrationField, string>> = {}
 
   const patientName = normaliseName(input.patientName)
   if (patientName === '') {
-    errors.patientName = ERROR_MESSAGES.NAME_REQUIRED
+    errors.patientName = messages.errors.NAME_REQUIRED
   } else if (patientName.length > MAX_NAME_LENGTH) {
-    errors.patientName = ERROR_MESSAGES.NAME_TOO_LONG
+    errors.patientName = messages.errors.NAME_TOO_LONG
   }
 
   const mobile = normaliseMobile(input.mobile)
@@ -80,12 +91,12 @@ export function validateRegistration(input: RegistrationInput): ValidationResult
   // reduce to a valid number is an error, not an absence: stripping "nonsense"
   // down to nothing and accepting it would silently discard what was entered.
   if (input.mobile.trim() !== '' && (mobile === null || !isValidMobile(mobile))) {
-    errors.mobile = ERROR_MESSAGES.INVALID_MOBILE
+    errors.mobile = messages.errors.INVALID_MOBILE
   }
 
   const doctorId = input.doctorId.trim()
   if (doctorId === '') {
-    errors.doctorId = ERROR_MESSAGES.DOCTOR_REQUIRED
+    errors.doctorId = messages.errors.DOCTOR_REQUIRED
   }
 
   return {

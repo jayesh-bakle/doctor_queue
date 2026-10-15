@@ -8,9 +8,9 @@ import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { EmptyState } from '../components/common/Feedback'
 import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { registrationUrl, siteOrigin } from '../lib/env'
 import { logTechnicalError } from '../lib/errors'
-import { roomShortLabel } from '../lib/queue'
 import { StaffLayout } from '../layouts/StaffLayout'
 
 /**
@@ -27,6 +27,8 @@ import { StaffLayout } from '../layouts/StaffLayout'
 export function QRPage() {
   const [searchParams] = useSearchParams()
   const { hospital } = useHospital()
+  const { messages } = useLanguage()
+  const t = messages.ui.qr
   const { doctors } = useDoctors()
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(searchParams.get('doctorId') ?? '')
@@ -89,8 +91,8 @@ export function QRPage() {
         {/* ---- Controls (never printed) ---------------------------------- */}
         <Card className="no-print">
           <CardHeader
-            title="QR कोड"
-            description="हा QR कोड छापून रिसेप्शनवर लावा. रुग्ण स्कॅन करून नोंदणी करतील."
+            title={t.title}
+            description={t.description}
             action={
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -99,14 +101,14 @@ export function QRPage() {
                   disabled={!dataUrl}
                   onClick={handleDownload}
                 >
-                  PNG डाउनलोड
+                  {t.download}
                 </Button>
                 <Button
                   icon={<Printer className="size-4" aria-hidden="true" />}
                   disabled={!dataUrl}
                   onClick={() => window.print()}
                 >
-                  छापा
+                  {t.print}
                 </Button>
               </div>
             }
@@ -115,7 +117,7 @@ export function QRPage() {
           <CardBody className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="qr-doctor" className="text-sm font-semibold text-slate-800">
-                कोणासाठी?
+                {t.forWhom}
               </label>
               <select
                 id="qr-doctor"
@@ -123,26 +125,25 @@ export function QRPage() {
                 onChange={(event) => setSelectedDoctorId(event.target.value)}
                 className="w-full max-w-md rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base text-slate-900 focus:border-brand-600 focus:outline-none"
               >
-                <option value="">सर्व डॉक्टर (सामान्य QR)</option>
+                <option value="">{t.allDoctors}</option>
                 {doctors.map((doctor) => (
                   <option key={doctor.id} value={doctor.id}>
                     {doctor.name}
-                    {doctor.roomNumber ? ` — ${roomShortLabel(doctor.roomNumber)}` : ''}
+                    {doctor.roomNumber ? ` — ${messages.roomShort(doctor.roomNumber)}` : ''}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500">
-                विशिष्ट डॉक्टरचा QR स्कॅन केल्यास त्या डॉक्टरची निवड आपोआप होते.
-              </p>
+              <p className="text-xs text-slate-500">{t.doctorHint}</p>
             </div>
 
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              QR मधील पत्ता: <span className="font-mono break-all text-slate-800">{targetUrl}</span>
+              {t.addressInQr}{' '}
+              <span className="font-mono break-all text-slate-800">{targetUrl}</span>
             </p>
 
             {qrError ? (
               <p role="alert" className="text-sm font-medium text-red-700">
-                QR कोड तयार करता आला नाही. कृपया पान ताजे करा.
+                {t.generateFailed}
               </p>
             ) : null}
           </CardBody>
@@ -151,7 +152,7 @@ export function QRPage() {
         {/* ---- The printable poster --------------------------------------- */}
         <div className="print-poster rounded-2xl border-4 border-brand-700 bg-white px-8 py-10 text-center shadow-sm">
           <p className="text-2xl font-extrabold text-brand-800">
-            {hospital?.name ?? 'आपल्या रुग्णालयाचे नाव'}
+            {hospital?.name ?? messages.ui.common.hospitalFallback}
           </p>
           {hospital?.address ? (
             <p className="mt-1 text-sm text-slate-500">{hospital.address}</p>
@@ -160,16 +161,14 @@ export function QRPage() {
           <div className="mx-auto my-6 h-1 w-24 rounded-full bg-brand-700" />
 
           <h1 className="text-3xl leading-snug font-extrabold text-slate-900 sm:text-4xl">
-            रांगेत नोंदणी करण्यासाठी
-            <br />
-            QR कोड स्कॅन करा
+            {t.posterHeading}
           </h1>
 
           <div className="my-8 flex justify-center">
             {dataUrl ? (
               <img
                 src={dataUrl}
-                alt={`नोंदणी पत्त्यासाठी QR कोड: ${targetUrl}`}
+                alt={t.qrAlt(targetUrl)}
                 className="size-72 rounded-xl border-4 border-slate-900 bg-white p-3 sm:size-80"
               />
             ) : (
@@ -179,27 +178,24 @@ export function QRPage() {
             )}
           </div>
 
-          <p className="text-xl font-bold text-slate-800">QR कोड स्कॅन करा</p>
-          <p className="mt-2 text-2xl font-extrabold text-brand-800">
-            आपला टोकन क्रमांक मोबाईलवर मिळवा
-          </p>
+          <p className="text-xl font-bold text-slate-800">{t.scanInstruction}</p>
+          <p className="mt-2 text-2xl font-extrabold text-brand-800">{t.getTokenOnMobile}</p>
 
           <ol className="mx-auto mt-6 flex max-w-md flex-col gap-1.5 text-left text-base text-slate-700">
-            <li>१. मोबाईलचा कॅमेरा उघडा.</li>
-            <li>२. हा QR कोड कॅमेऱ्यासमोर धरा.</li>
-            <li>३. दिसणारी लिंक उघडा.</li>
-            <li>४. नाव व डॉक्टर निवडून टोकन मिळवा.</li>
+            {t.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
           </ol>
 
           {selectedDoctor ? (
             <p className="mt-6 text-lg font-bold text-slate-800">
               {selectedDoctor.name}
-              {selectedDoctor.roomNumber ? ` · ${roomShortLabel(selectedDoctor.roomNumber)}` : ''}
+              {selectedDoctor.roomNumber ? ` · ${messages.roomShort(selectedDoctor.roomNumber)}` : ''}
             </p>
           ) : null}
 
           <p className="mt-6 rounded-xl border-2 border-dashed border-slate-300 px-4 py-3 text-base font-semibold text-slate-700">
-            मोबाईल नसल्यास रिसेप्शनवर नोंदणी करा.
+            {t.noMobile}
           </p>
 
           {origin ? <p className="mt-4 text-xs text-slate-400">{origin}</p> : null}
@@ -207,16 +203,10 @@ export function QRPage() {
 
         {/* ---- Display URLs ---------------------------------------------- */}
         <Card className="no-print">
-          <CardHeader
-            title="टीव्ही डिस्प्ले लिंक"
-            description="ही लिंक टीव्ही, मॉनिटर किंवा टॅबलेटवर उघडा. रुग्णांची नावे येथे दिसत नाहीत."
-          />
+          <CardHeader title={t.displayLinksTitle} description={t.displayLinksDescription} />
           <CardBody>
             {doctors.length === 0 ? (
-              <EmptyState
-                title="अजून डॉक्टर जोडलेले नाहीत."
-                description="डिस्प्ले लिंक मिळवण्यासाठी आधी डॉक्टर जोडा."
-              />
+              <EmptyState title={t.noDoctorsTitle} description={t.noDoctorsDescription} />
             ) : (
               <ul className="flex flex-col gap-2">
                 {doctors.map((doctor) => (

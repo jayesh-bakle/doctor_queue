@@ -11,18 +11,12 @@ import { TokenDisplay } from '../components/common/TokenDisplay'
 import { QueueTable } from '../components/staff/QueueTable'
 import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { useQueue } from '../hooks/useQueue'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
-import { toMarathiNumber, formatToken } from '../lib/marathiDigits'
-import {
-  buildAnnouncementText,
-  countRemaining,
-  deriveSnapshot,
-  findNextWaitingToken,
-  roomShortLabel,
-} from '../lib/queue'
+import { logTechnicalError, toUserMessage } from '../lib/errors'
+import { countRemaining, deriveSnapshot, findNextWaitingToken } from '../lib/queue'
 import { speak } from '../lib/speech'
 import { cn, todayInTimeZone } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
@@ -38,6 +32,8 @@ import type { QueueEntryView } from '../types/queue'
  */
 export function StaffDashboardPage() {
   const { hospital } = useHospital()
+  const { language, messages } = useLanguage()
+  const t = messages.ui.dashboard
   const { doctors, loading: doctorsLoading, error: doctorsError, reload: reloadDoctors } = useDoctors()
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null)
@@ -70,12 +66,12 @@ export function StaffDashboardPage() {
         await refresh()
       } catch (caught) {
         logTechnicalError('StaffDashboardPage — action', caught)
-        setActionError(toMarathiError(caught))
+        setActionError(toUserMessage(caught, messages))
       } finally {
         setBusyPublicId(null)
       }
     },
-    [refresh],
+    [messages, refresh],
   )
 
   const handleCallNext = useCallback(async () => {
@@ -89,28 +85,28 @@ export function StaffDashboardPage() {
       const result = await dataSource.callNext(activeDoctorId)
 
       if (!result) {
-        setNotice('रांगेत आता कोणीही प्रतीक्षेत नाही.')
+        setNotice(t.queueEmptyNotice)
         return
       }
 
       // Announced aloud where the button was pressed. The TV page can announce
       // too; the two toggles are independent, so a clinic that hears it twice
       // turns one of them off (see README).
-      speak(buildAnnouncementText(result.called_token, result.room_number))
+      speak(messages.announcement(result.called_token, result.room_number), { language })
 
       await refresh()
     } catch (caught) {
       logTechnicalError('StaffDashboardPage — callNext', caught)
-      setActionError(toMarathiError(caught))
+      setActionError(toUserMessage(caught, messages))
     } finally {
       setCallNextBusy(false)
     }
-  }, [activeDoctorId, callNextBusy, refresh])
+  }, [activeDoctorId, callNextBusy, language, messages, refresh, t.queueEmptyNotice])
 
   const handleRecall = (entry: QueueEntryView) =>
     runAction(entry.publicId, async () => {
       const result = await dataSource.recall(entry.publicId)
-      speak(buildAnnouncementText(result.token_number, result.room_number))
+      speak(messages.announcement(result.token_number, result.room_number), { language })
     })
 
   const handleStart = (entry: QueueEntryView) =>
@@ -133,7 +129,7 @@ export function StaffDashboardPage() {
   if (doctorsLoading) {
     return (
       <StaffLayout>
-        <LoadingState message="डॉक्टरांची माहिती लोड होत आहे…" />
+        <LoadingState message={t.loadingDoctors} />
       </StaffLayout>
     )
   }
@@ -150,12 +146,12 @@ export function StaffDashboardPage() {
     return (
       <StaffLayout>
         <EmptyState
-          title="अजून एकही डॉक्टर जोडलेले नाहीत."
-          description="रांग सुरू करण्यापूर्वी डॉक्टर जोडा."
+          title={t.noDoctorsTitle}
+          description={t.noDoctorsDescription}
           icon={<Users className="size-7" aria-hidden="true" />}
           action={
             <Link to="/staff/doctors">
-              <Button>डॉक्टर जोडा</Button>
+              <Button>{t.addDoctor}</Button>
             </Link>
           }
         />
@@ -173,7 +169,7 @@ export function StaffDashboardPage() {
         {/* ---- Doctor selector ------------------------------------------- */}
         {doctors.length > 1 ? (
           <div>
-            <h2 className="mb-2 text-sm font-semibold text-slate-600">डॉक्टर निवडा</h2>
+            <h2 className="mb-2 text-sm font-semibold text-slate-600">{t.selectDoctor}</h2>
             <div className="flex flex-wrap gap-2">
               {doctors.map((doctor) => {
                 const selected = doctor.id === activeDoctorId
@@ -192,7 +188,7 @@ export function StaffDashboardPage() {
                   >
                     <span className="text-base font-bold text-slate-900">{doctor.name}</span>
                     <span className="text-xs text-slate-500">
-                      {doctor.department} · {roomShortLabel(doctor.roomNumber)}
+                      {doctor.department} · {messages.roomShort(doctor.roomNumber)}
                     </span>
                   </button>
                 )
@@ -208,32 +204,32 @@ export function StaffDashboardPage() {
               <div className="flex flex-col gap-1">
                 <p className="text-lg font-bold text-slate-900">{activeDoctor?.name}</p>
                 <p className="text-sm text-slate-600">
-                  {activeDoctor?.department} · {roomShortLabel(activeDoctor?.roomNumber ?? '')}
+                  {activeDoctor?.department} · {messages.roomShort(activeDoctor?.roomNumber ?? '')}
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2">
                   <div>
                     <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                      प्रतीक्षेत
+                      {t.waiting}
                     </p>
                     <p className="token-digits text-3xl font-extrabold text-slate-900">
-                      {toMarathiNumber(snapshot.waitingCount)}
+                      {messages.count(snapshot.waitingCount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                      एकूण आज
+                      {t.totalToday}
                     </p>
                     <p className="token-digits text-3xl font-extrabold text-slate-900">
-                      {toMarathiNumber(entries.length)}
+                      {messages.count(entries.length)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                      बाकी
+                      {t.remaining}
                     </p>
                     <p className="token-digits text-3xl font-extrabold text-slate-900">
-                      {toMarathiNumber(remaining)}
+                      {messages.count(remaining)}
                     </p>
                   </div>
                 </div>
@@ -242,7 +238,7 @@ export function StaffDashboardPage() {
               <TokenDisplay
                 token={snapshot.currentToken}
                 size="lg"
-                label="सध्या सुरू"
+                label={t.currentlyServing}
                 emptyText="—"
               />
             </CardBody>
@@ -258,15 +254,16 @@ export function StaffDashboardPage() {
                 icon={<BellRing className="size-6" aria-hidden="true" />}
                 onClick={() => void handleCallNext()}
               >
-                पुढील रुग्ण बोलवा
+                {t.callNext}
               </Button>
 
               {nextWaitingToken !== null ? (
                 <p className="text-center text-sm text-slate-600">
-                  पुढील क्रमांक: <strong className="token-digits">{formatToken(nextWaitingToken)}</strong>
+                  {t.nextToken}{' '}
+                  <strong className="token-digits">{messages.token(nextWaitingToken)}</strong>
                 </p>
               ) : (
-                <p className="text-center text-sm text-slate-500">प्रतीक्षेत कोणी नाही</p>
+                <p className="text-center text-sm text-slate-500">{t.nobodyWaiting}</p>
               )}
 
               <AnnouncementToggle />
@@ -279,7 +276,7 @@ export function StaffDashboardPage() {
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   <ExternalLink className="size-4" aria-hidden="true" />
-                  टीव्ही डिस्प्ले उघडा
+                  {t.openDisplay}
                 </a>
               ) : null}
             </CardBody>
@@ -309,18 +306,18 @@ export function StaffDashboardPage() {
         {/* ---- The queue --------------------------------------------------- */}
         <Card>
           <CardHeader
-            title="आजची रांग"
-            description={`एकूण ${toMarathiNumber(entries.length)} नोंदी`}
+            title={t.queueTitle}
+            description={t.queueCount(entries.length)}
           />
 
           {loading ? (
-            <LoadingState message="रांग लोड होत आहे…" />
+            <LoadingState message={t.queueLoading} />
           ) : error ? (
             <ErrorState message={error} onRetry={() => void refresh()} />
           ) : entries.length === 0 ? (
             <EmptyState
-              title="आज अजून एकही रुग्ण नोंदणी झालेला नाही."
-              description="रुग्ण QR कोड स्कॅन करून नोंदणी करतील, तसे ते येथे दिसतील."
+              title={t.emptyQueueTitle}
+              description={t.emptyQueueDescription}
             />
           ) : (
             <QueueTable

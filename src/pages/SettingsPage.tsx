@@ -5,8 +5,9 @@ import { Button } from '../components/common/Button'
 import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { ErrorState, LoadingState } from '../components/common/Feedback'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { dataSource } from '../lib/datasource'
-import { ERROR_MESSAGES, logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserMessage } from '../lib/errors'
 import { DEFAULT_TIME_ZONE, isValidTimeZone } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -25,6 +26,8 @@ const INPUT_CLASSES =
  */
 export function SettingsPage() {
   const { hospital, loading, reload } = useHospital()
+  const { messages } = useLanguage()
+  const t = messages.ui.settings
 
   const nameId = useId()
   const addressId = useId()
@@ -70,7 +73,7 @@ export function SettingsPage() {
     const trimmedTimeZone = timezone.trim() || DEFAULT_TIME_ZONE
     if (!isValidTimeZone(trimmedTimeZone)) {
       setSaved(false)
-      setError(ERROR_MESSAGES.INVALID_TIME_ZONE)
+      setError(messages.errors.INVALID_TIME_ZONE)
       return
     }
 
@@ -94,7 +97,7 @@ export function SettingsPage() {
       setSaved(true)
     } catch (caught) {
       logTechnicalError('SettingsPage — updateHospital', caught)
-      setError(toMarathiError(caught))
+      setError(toUserMessage(caught, messages))
     } finally {
       setSubmitting(false)
     }
@@ -103,7 +106,7 @@ export function SettingsPage() {
   if (loading) {
     return (
       <StaffLayout>
-        <LoadingState message="सेटिंग्ज लोड होत आहेत…" />
+        <LoadingState message={t.loading} />
       </StaffLayout>
     )
   }
@@ -111,10 +114,7 @@ export function SettingsPage() {
   if (!hospital) {
     return (
       <StaffLayout>
-        <ErrorState
-          message="रुग्णालयाची माहिती मिळाली नाही. कृपया पुन्हा प्रयत्न करा."
-          onRetry={() => void reload()}
-        />
+        <ErrorState message={t.loadFailed} onRetry={() => void reload()} />
       </StaffLayout>
     )
   }
@@ -123,22 +123,19 @@ export function SettingsPage() {
     <StaffLayout>
       <div className="mx-auto max-w-3xl">
         <Card>
-          <CardHeader
-            title="रुग्णालय सेटिंग्ज"
-            description="ही माहिती रुग्ण आणि टीव्ही डिस्प्लेवर दिसते."
-          />
+          <CardHeader title={t.title} description={t.description} />
 
           <CardBody>
             <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={nameId} className="text-sm font-semibold text-slate-800">
-                  रुग्णालयाचे नाव
+                  {t.name}
                 </label>
                 <input
                   id={nameId}
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="आपल्या रुग्णालयाचे नाव"
+                  placeholder={t.namePlaceholder}
                   maxLength={120}
                   className={INPUT_CLASSES}
                 />
@@ -146,7 +143,7 @@ export function SettingsPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label htmlFor={addressId} className="text-sm font-semibold text-slate-800">
-                  पत्ता
+                  {t.address}
                 </label>
                 <input
                   id={addressId}
@@ -160,7 +157,7 @@ export function SettingsPage() {
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={phoneId} className="text-sm font-semibold text-slate-800">
-                    दूरध्वनी
+                    {t.phone}
                   </label>
                   <input
                     id={phoneId}
@@ -174,7 +171,7 @@ export function SettingsPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={timezoneId} className="text-sm font-semibold text-slate-800">
-                    टाइम झोन
+                    {t.timezone}
                   </label>
                   <input
                     id={timezoneId}
@@ -184,16 +181,14 @@ export function SettingsPage() {
                     maxLength={64}
                     className={INPUT_CLASSES}
                   />
-                  <p className="text-xs text-slate-500">
-                    रांग दररोज मध्यरात्री या टाइम झोननुसार नव्याने सुरू होते.
-                  </p>
+                  <p className="text-xs text-slate-500">{t.timezoneHint}</p>
                 </div>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={avgId} className="text-sm font-semibold text-slate-800">
-                    सरासरी तपासणी वेळ (मिनिटे)
+                    {t.avgMinutes}
                   </label>
                   <input
                     id={avgId}
@@ -204,20 +199,18 @@ export function SettingsPage() {
                     onChange={(event) => setAvgMinutes(event.target.value)}
                     className={INPUT_CLASSES}
                   />
-                  <p className="text-xs text-slate-500">
-                    फक्त अंदाजे प्रतीक्षा वेळ दाखवण्यासाठी वापरला जातो.
-                  </p>
+                  <p className="text-xs text-slate-500">{t.avgHint}</p>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={messageId} className="text-sm font-semibold text-slate-800">
-                    टीव्हीवरील संदेश
+                    {t.displayMessage}
                   </label>
                   <input
                     id={messageId}
                     value={displayMessage}
                     onChange={(event) => setDisplayMessage(event.target.value)}
-                    placeholder="कृपया आपल्या क्रमांकाची वाट पाहा."
+                    placeholder={t.displayMessagePlaceholder}
                     maxLength={160}
                     className={INPUT_CLASSES}
                   />
@@ -235,9 +228,7 @@ export function SettingsPage() {
                   onChange={(event) => setAnnouncementEnabled(event.target.checked)}
                   className="size-5 accent-brand-700"
                 />
-                <span className="text-sm font-medium text-slate-800">
-                  आवाजाद्वारे क्रमांक जाहीर करा
-                </span>
+                <span className="text-sm font-medium text-slate-800">{t.announceAloud}</span>
               </label>
 
               {error ? (
@@ -254,7 +245,7 @@ export function SettingsPage() {
                   role="status"
                   className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900"
                 >
-                  सेटिंग्ज जतन झाल्या.
+                  {t.saved}
                 </p>
               ) : null}
 
@@ -265,7 +256,7 @@ export function SettingsPage() {
                   loading={submitting}
                   icon={<Save className="size-5" aria-hidden="true" />}
                 >
-                  जतन करा
+                  {t.save}
                 </Button>
               </div>
             </form>

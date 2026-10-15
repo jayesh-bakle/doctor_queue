@@ -7,7 +7,7 @@ import { installBrowserEnv, demoStorage, DEMO_STATE_KEY } from './helpers/browse
 installBrowserEnv()
 
 const { demoDataSource, DEMO_CREDENTIALS } = await import('../src/lib/datasource/demoDataSource')
-const { AppError, ERROR_MESSAGES } = await import('../src/lib/errors')
+const { AppError } = await import('../src/lib/errors')
 const { formatToken } = await import('../src/lib/marathiDigits')
 
 type DataSource = typeof demoDataSource
@@ -178,8 +178,13 @@ describe('registration validation', () => {
     })
   })
 
-  it('shows the patient a Marathi sentence, never a raw error', async () => {
-    await expect(register(demoDataSource, '')).rejects.toThrow(ERROR_MESSAGES.DOCTOR_REQUIRED)
+  it('raises a code the UI can phrase, never a raw error', async () => {
+    // The data layer raises machine codes; the sentence a patient reads is
+    // chosen at the edge, from their language (`toUserMessage`).
+    await expect(register(demoDataSource, '')).rejects.toMatchObject({
+      code: 'DOCTOR_REQUIRED',
+      message: 'DOCTOR_REQUIRED',
+    })
   })
 
   it('accepts a registration with no mobile number', async () => {
@@ -442,10 +447,10 @@ describe('staff authentication', () => {
     expect(await demoDataSource.getCurrentStaff()).toEqual(session)
   })
 
-  it('refuses a wrong password in Marathi', async () => {
-    await expect(demoDataSource.signIn(DEMO_CREDENTIALS.email, 'wrong')).rejects.toThrow(
-      ERROR_MESSAGES.INVALID_CREDENTIALS,
-    )
+  it('refuses a wrong password with a code, not a sentence', async () => {
+    await expect(
+      demoDataSource.signIn(DEMO_CREDENTIALS.email, 'wrong'),
+    ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
   })
 
   it('forgets the session on sign out', async () => {

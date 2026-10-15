@@ -1,15 +1,18 @@
 import { AlertTriangle, Inbox, Loader2, WifiOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 
-/** A centred spinner with a Marathi caption. */
-export function LoadingState({ message = 'कृपया थोडी वाट पाहा…' }: { message?: string }) {
+/** A centred spinner with a caption in the reader's language. */
+export function LoadingState({ message }: { message?: string }) {
+  const { messages } = useLanguage()
+
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-16 text-center">
       <Loader2 className="size-8 animate-spin text-brand-700" aria-hidden="true" />
       <p className="text-base text-slate-600" role="status">
-        {message}
+        {message ?? messages.ui.common.loading}
       </p>
     </div>
   )
@@ -23,15 +26,12 @@ interface ErrorStateProps {
 }
 
 /**
- * A friendly Marathi failure notice. The technical detail is logged to the
- * console by `toMarathiError`, never rendered here (spec §21).
+ * A friendly failure notice. The technical detail is logged to the console by
+ * `toUserMessage`, never rendered here (spec §21).
  */
-export function ErrorState({
-  message,
-  onRetry,
-  retryLabel = 'पुन्हा प्रयत्न करा',
-  className,
-}: ErrorStateProps) {
+export function ErrorState({ message, onRetry, retryLabel, className }: ErrorStateProps) {
+  const { messages } = useLanguage()
+
   return (
     <div className={cn('flex flex-col items-center gap-4 px-4 py-12 text-center', className)}>
       <div className="flex size-14 items-center justify-center rounded-full bg-red-50">
@@ -46,7 +46,7 @@ export function ErrorState({
           onClick={onRetry}
           className="min-h-11 rounded-xl border border-slate-300 bg-white px-5 font-semibold text-slate-800 hover:bg-slate-50"
         >
-          {retryLabel}
+          {retryLabel ?? messages.ui.common.retry}
         </button>
       ) : null}
     </div>
@@ -76,6 +76,8 @@ export function EmptyState({ title, description, icon, action, className }: Empt
 
 /** Shown when the browser is offline. Never lets the UI imply it is synced. */
 export function OfflineNotice({ className }: { className?: string }) {
+  const { messages } = useLanguage()
+
   return (
     <div
       className={cn(
@@ -85,7 +87,7 @@ export function OfflineNotice({ className }: { className?: string }) {
       role="status"
     >
       <WifiOff className="size-4 shrink-0" aria-hidden="true" />
-      इंटरनेट कनेक्शन तपासा.
+      {messages.ui.common.offline}
     </div>
   )
 }

@@ -1,52 +1,54 @@
 /**
- * Marathi error messages and the mapping from technical failures to them.
+ * Machine error codes and the mapping from technical failures to them.
  *
  * The database raises stable machine codes ('NAME_REQUIRED', 'DOCTOR_INACTIVE')
- * rather than human text. This module is the single place those codes become
- * something a patient or a receptionist can act on, so no raw Postgres error —
- * and no English stack trace — ever reaches a screen (spec §21).
+ * rather than human text. This module keeps those codes and the machinery that
+ * recognises them; the sentences a patient reads live in the locale modules
+ * (`src/lib/i18n/`), because with three languages there is no longer one
+ * correct sentence for `toUserMessage` to return on its own.
  *
- * The technical detail is not discarded: `logTechnicalError` writes it to the
- * console for whoever is debugging.
+ * The technical detail is never discarded: `logTechnicalError` writes it to the
+ * console for whoever is debugging (spec §21).
  */
 
-export const ERROR_MESSAGES = {
-  NAME_REQUIRED: 'कृपया रुग्णाचे नाव भरा.',
-  NAME_TOO_LONG: 'नाव खूप मोठे आहे. कृपया थोडक्यात लिहा.',
-  INVALID_MOBILE: 'कृपया योग्य १० अंकी मोबाईल क्रमांक भरा.',
-  INVALID_PATIENT_TYPE: 'कृपया रुग्णाचा प्रकार निवडा.',
-  DOCTOR_REQUIRED: 'कृपया डॉक्टर निवडा.',
-  DOCTOR_NOT_FOUND: 'सध्या रांग उपलब्ध नाही. कृपया रिसेप्शनशी संपर्क साधा.',
-  DOCTOR_INACTIVE: 'ही रांग सध्या बंद आहे. कृपया रिसेप्शनशी संपर्क साधा.',
-  HOSPITAL_NOT_FOUND: 'सध्या रांग उपलब्ध नाही. कृपया रिसेप्शनशी संपर्क साधा.',
-  TOKEN_NOT_FOUND: 'हा टोकन क्रमांक सापडला नाही. कृपया रिसेप्शनशी संपर्क साधा.',
-  NOT_AUTHORIZED: 'आपल्याला ही कृती करण्याची परवानगी नाही. कृपया पुन्हा लॉगिन करा.',
-  INVALID_STATUS_TRANSITION: 'ही कृती आता करता येत नाही. कृपया पान ताजे करा.',
-  INVALID_CREDENTIALS: 'ईमेल किंवा पासवर्ड चुकीचा आहे.',
-  STAFF_NOT_LINKED:
-    'आपले खाते रुग्णालयाशी जोडलेले नाही. कृपया प्रशासकाशी संपर्क साधा.',
-  QUEUE_EMPTY: 'रांगेत आता कोणीही प्रतीक्षेत नाही.',
-  INVALID_TIME_ZONE:
-    'हा टाइम झोन ओळखला जात नाही. कृपया इंग्रजीत "Asia/Kolkata" या स्वरूपात लिहा.',
-  OFFLINE: 'इंटरनेट कनेक्शन तपासा.',
-  TIMEOUT: 'सर्व्हरला उत्तर द्यायला वेळ लागत आहे. कृपया पुन्हा प्रयत्न करा.',
-  NETWORK: 'काहीतरी तांत्रिक अडचण आली आहे. कृपया पुन्हा प्रयत्न करा.',
-  UNKNOWN: 'काहीतरी तांत्रिक अडचण आली आहे. कृपया पुन्हा प्रयत्न करा.',
-} as const
+export const ERROR_CODES = [
+  'NAME_REQUIRED',
+  'NAME_TOO_LONG',
+  'INVALID_MOBILE',
+  'INVALID_PATIENT_TYPE',
+  'DOCTOR_REQUIRED',
+  'DOCTOR_NOT_FOUND',
+  'DOCTOR_INACTIVE',
+  'HOSPITAL_NOT_FOUND',
+  'TOKEN_NOT_FOUND',
+  'NOT_AUTHORIZED',
+  'INVALID_STATUS_TRANSITION',
+  'INVALID_CREDENTIALS',
+  'STAFF_NOT_LINKED',
+  'QUEUE_EMPTY',
+  'INVALID_TIME_ZONE',
+  'OFFLINE',
+  'TIMEOUT',
+  'NETWORK',
+  'UNKNOWN',
+] as const
 
-export type AppErrorCode = keyof typeof ERROR_MESSAGES
+export type AppErrorCode = (typeof ERROR_CODES)[number]
 
-const KNOWN_CODES = new Set<string>(Object.keys(ERROR_MESSAGES))
+const KNOWN_CODES = new Set<string>(ERROR_CODES)
 
 /**
  * An error already carrying a code the UI knows how to phrase.
- * Its `message` is the Marathi text, so it can be rendered directly.
+ *
+ * Its `message` is the machine code, not display text: the sentence depends on
+ * the language the reader has chosen, which this layer deliberately knows
+ * nothing about. Call `toUserMessage` to turn it into something readable.
  */
 export class AppError extends Error {
   readonly code: AppErrorCode
 
   constructor(code: AppErrorCode, options?: { cause?: unknown }) {
-    super(ERROR_MESSAGES[code])
+    super(code)
     this.name = 'AppError'
     this.code = code
     if (options?.cause !== undefined) {
@@ -83,7 +85,7 @@ export function isKnownErrorCode(value: string | null | undefined): value is App
 
 /**
  * Wraps any failure as an `AppError`, keeping a recognised code when there is
- * one and falling back to the generic Marathi sentence when there is not.
+ * one and falling back to the generic code when there is not.
  *
  * The original error is attached as `cause` so the technical detail survives for
  * whoever is debugging — it just never reaches a screen (spec §21).
@@ -107,20 +109,37 @@ function isNetworkFailure(error: unknown): boolean {
 }
 
 /**
- * The one function the UI should call when something fails.
- * Always returns a Marathi sentence safe to show a patient.
+ * The code this failure should be reported under.
+ *
+ * Separated from {@link toUserMessage} so a component or hook can hold onto the
+ * code instead of a finished sentence: a stored code re-renders in whatever
+ * language the reader has since chosen, a stored sentence does not.
  */
-export function toMarathiError(error: unknown): string {
+export function toUserErrorCode(error: unknown): AppErrorCode {
   const code = extractErrorCode(error)
-  if (code && KNOWN_CODES.has(code)) return ERROR_MESSAGES[code as AppErrorCode]
+  if (isKnownErrorCode(code)) return code
 
   if (isNetworkFailure(error)) {
-    return typeof navigator !== 'undefined' && navigator.onLine === false
-      ? ERROR_MESSAGES.OFFLINE
-      : ERROR_MESSAGES.NETWORK
+    return typeof navigator !== 'undefined' && navigator.onLine === false ? 'OFFLINE' : 'NETWORK'
   }
 
-  return ERROR_MESSAGES.UNKNOWN
+  return 'UNKNOWN'
+}
+
+/**
+ * The one function the UI should call when something fails.
+ * Always returns a sentence in the reader's chosen language, safe to show a
+ * patient.
+ *
+ * Takes the message catalogue as an argument rather than importing one, so this
+ * stays a pure function and the caller — a component holding `useLanguage()` —
+ * decides which language the sentence comes out in.
+ */
+export function toUserMessage(
+  error: unknown,
+  messages: { errors: Record<AppErrorCode, string> },
+): string {
+  return messages.errors[toUserErrorCode(error)]
 }
 
 /**

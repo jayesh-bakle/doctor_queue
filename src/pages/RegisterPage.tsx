@@ -5,8 +5,9 @@ import { Button } from '../components/common/Button'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/Feedback'
 import { RegistrationForm, type RegistrationFormValues } from '../components/patient/RegistrationForm'
 import { useDoctors } from '../hooks/useDoctors'
+import { useLanguage } from '../hooks/useLanguage'
 import { dataSource } from '../lib/datasource'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserMessage } from '../lib/errors'
 import { PatientLayout } from '../layouts/PatientLayout'
 
 /**
@@ -24,6 +25,8 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { doctors, loading, error, reload } = useDoctors()
+  const { messages } = useLanguage()
+  const t = messages.ui.register
 
   // A doctor-specific QR poster links here with ?doctorId=…, which preselects
   // that doctor. The value is only a hint — the server validates it on submit.
@@ -54,7 +57,7 @@ export function RegisterPage() {
       navigate(`/token/${result.public_id}`, { replace: true })
     } catch (caught) {
       logTechnicalError('RegisterPage — registerPatient', caught)
-      setSubmitError(toMarathiError(caught))
+      setSubmitError(toUserMessage(caught, messages))
       setSubmitting(false)
     }
   }
@@ -62,23 +65,21 @@ export function RegisterPage() {
   return (
     <PatientLayout>
       <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-slate-900">रुग्ण रांगेत नोंदणी</h1>
-        <p className="mt-1 text-base text-slate-600">
-          खालील माहिती भरा आणि आपला टोकन क्रमांक मिळवा.
-        </p>
+        <h1 className="text-2xl font-extrabold text-slate-900">{t.title}</h1>
+        <p className="mt-1 text-base text-slate-600">{t.subtitle}</p>
       </div>
 
-      {loading ? <LoadingState message="माहिती लोड होत आहे…" /> : null}
+      {loading ? <LoadingState message={t.loadingDoctors} /> : null}
 
       {!loading && error ? <ErrorState message={error} onRetry={() => void reload()} /> : null}
 
       {!loading && !error && doctors.length === 0 ? (
         <EmptyState
-          title="सध्या रांग उपलब्ध नाही."
-          description="कृपया रिसेप्शनशी संपर्क साधा."
+          title={t.emptyTitle}
+          description={t.emptyDescription}
           action={
             <Button variant="secondary" onClick={() => void reload()}>
-              पुन्हा प्रयत्न करा
+              {messages.ui.common.retry}
             </Button>
           }
         />

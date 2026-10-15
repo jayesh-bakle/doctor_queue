@@ -1,29 +1,53 @@
 /**
- * Marathi audio announcement via the browser's Web Speech API.
+ * Audio announcements via the browser's Web Speech API.
  *
  * Two things this module refuses to do, both deliberate:
  *
- * 1. It never makes the app depend on speech. Marathi TTS is unavailable on
+ * 1. It never makes the app depend on speech. Devanagari TTS is unavailable on
  *    many Android and most desktop browsers, so every function degrades to a
  *    silent no-op and the queue keeps working (spec §13).
  *
- * 2. It never pretends a voice it wanted was used. When no Marathi voice
- *    exists it falls back to Hindi — which reads Devanagari correctly and
- *    pronounces the token numbers acceptably — and reports which voice it
- *    actually used so Settings can say so out loud.
+ * 2. It never pretends a voice it wanted was used. When no voice exists for the
+ *    chosen language it falls back to another one and reports which voice it
+ *    actually used, so Settings can say so out loud.
+ *
+ * The announcement follows the language on screen. A Marathi sentence read aloud
+ * to a waiting room that has been switched to English would be worse than
+ * silence, so the voice is picked from the current language, not a fixed list.
  */
+
+import type { Language } from './i18n/types'
 
 const STORAGE_KEY = 'queue.announcementEnabled'
 
-/** Preferred voices, best first. `mr-IN` is the target; `hi-IN` is the fallback. */
-const VOICE_PREFERENCE = ['mr-IN', 'mr', 'hi-IN', 'hi', 'en-IN']
+/**
+ * Preferred voices per language, best first.
+ *
+ * `mr` lists Hindi after Marathi because Hindi voices read Devanagari correctly
+ * and pronounce token numbers acceptably — a useful approximation when the
+ * device has no Marathi voice at all. `hi` does not list Marathi, and `en` lists
+ * neither: those fallbacks would read a Latin-script sentence in the wrong
+ * language rather than approximately the right one.
+ */
+const VOICE_PREFERENCE: Record<Language, readonly string[]> = {
+  mr: ['mr-IN', 'mr', 'hi-IN', 'hi'],
+  hi: ['hi-IN', 'hi'],
+  en: ['en-IN', 'en-GB', 'en-US', 'en'],
+}
+
+/** The BCP-47 tag used when no voice matched at all. */
+const NEUTRAL_TAG: Record<Language, string> = {
+  mr: 'mr-IN',
+  hi: 'hi-IN',
+  en: 'en-IN',
+}
 
 export interface SpeechStatus {
   supported: boolean
   /** The BCP-47 tag the chosen voice will use, or null when none matched. */
   voiceLang: string | null
   voiceName: string | null
-  /** True when no Marathi voice exists and pronunciation will be approximate. */
+  /** True when no voice exists for the chosen language and pronunciation will be approximate. */
   usingFallback: boolean
 }
 
@@ -73,11 +97,11 @@ export function onVoicesChanged(callback: () => void): () => void {
   return () => s.removeEventListener('voiceschanged', handler)
 }
 
-function pickVoice(): SpeechSynthesisVoice | null {
+function pickVoice(language: Language): SpeechSynthesisVoice | null {
   const voices = voicesLoaded ? cachedVoices : loadVoices()
   if (voices.length === 0) return null
 
-  for (const preferred of VOICE_PREFERENCE) {
+  for (const preferred of VOICE_PREFERENCE[language]) {
     // Exact tag first ("mr-IN"), then any voice for the language ("mr-*").
     const exact = voices.find((v) => v.lang?.toLowerCase() === preferred.toLowerCase())
     if (exact) return exact
@@ -91,22 +115,24 @@ function pickVoice(): SpeechSynthesisVoice | null {
 }
 
 /** Describes what the announcement will actually sound like on this device. */
-export function getSpeechStatus(): SpeechStatus {
+export function getSpeechStatus(language: Language = 'mr'): SpeechStatus {
   if (!isSpeechSupported()) {
     return { supported: false, voiceLang: null, voiceName: null, usingFallback: false }
   }
 
-  const voice = pickVoice()
+  const voice = pickVoice(language)
   if (!voice) {
     return { supported: true, voiceLang: null, voiceName: null, usingFallback: true }
   }
 
   const lang = (voice.lang ?? '').toLowerCase()
+  const primary = VOICE_PREFERENCE[language][0]!.split('-')[0]!.toLowerCase()
   return {
     supported: true,
     voiceLang: voice.lang ?? null,
     voiceName: voice.name ?? null,
-    usingFallback: !lang.startsWith('mr'),
+    // A fallback is a wrong-language voice, not merely a different accent.
+    usingFallback: !lang.startsWith(primary),
   }
 }
 
@@ -178,13 +204,18 @@ export function cancelSpeech(): void {
  * Speaks an announcement such as
  * `टोकन क्रमांक ०२७, कृपया तपासणी कक्ष क्रमांक १ मध्ये या.`
  *
+ * `language` should be the language the sentence was written in and the screen
+ * is showing, so the voice matches the words.
+ *
  * Returns whether speech was actually attempted, so callers can surface a
  * caption instead when it was not.
  */
-export function speak(text: string, options?: { force?: boolean }): boolean {
+export function speak(text: string, options?: { force?: boolean; language?: Language }): boolean {
   if (!isSpeechSupported()) return false
   if (!options?.force && !isAnnouncementEnabled()) return false
   if (!text.trim()) return false
+
+  const language = options?.language ?? 'mr'
 
   const s = synth()
   if (!s) return false
@@ -194,11 +225,11 @@ export function speak(text: string, options?: { force?: boolean }): boolean {
     s.cancel()
 
     const utterance = new SpeechSynthesisUtterance(text)
-    const voice = pickVoice()
+    const voice = pickVoice(language)
     if (voice) utterance.voice = voice
     // Tag the utterance regardless, so engines with no explicit voice still
-    // attempt Devanagari pronunciation rather than the system default.
-    utterance.lang = voice?.lang ?? 'mr-IN'
+    // attempt the right pronunciation rather than the system default.
+    utterance.lang = voice?.lang ?? NEUTRAL_TAG[language]
     // Slightly slower than default: token numbers are read to people who may be
     // hard of hearing, in a noisy waiting room.
     utterance.rate = 0.9
@@ -217,10 +248,10 @@ export function speak(text: string, options?: { force?: boolean }): boolean {
 }
 
 /** Repeats an announcement a second time, a beat later — how a real desk calls. */
-export function speakTwice(text: string): boolean {
-  const spoke = speak(text)
+export function speakTwice(text: string, options?: { language?: Language }): boolean {
+  const spoke = speak(text, options)
   if (!spoke) return false
 
-  window.setTimeout(() => speak(text, { force: true }), 3500)
+  window.setTimeout(() => speak(text, { force: true, language: options?.language }), 3500)
   return true
 }

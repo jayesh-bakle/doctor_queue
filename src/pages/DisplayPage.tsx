@@ -3,14 +3,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { AnnouncementToggle } from '../components/common/AnnouncementToggle'
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 import { TokenDisplay } from '../components/common/TokenDisplay'
 import { usePublicQueue } from '../hooks/usePublicQueue'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { displayUrl } from '../lib/env'
-import { toMarathiNumber } from '../lib/marathiDigits'
-import { buildAnnouncementText, roomShortLabel } from '../lib/queue'
 import { speak } from '../lib/speech'
-import { formatDateWithWeekday, formatTime } from '../lib/utils'
 import { DisplayLayout } from '../layouts/DisplayLayout'
 
 /**
@@ -33,6 +32,8 @@ export function DisplayPage() {
   const { doctorId } = useParams<{ doctorId: string }>()
   const { data, loading, notFound, error } = usePublicQueue(doctorId)
   const { hospital } = useHospital()
+  const { language, messages } = useLanguage()
+  const t = messages.ui.display
 
   const [now, setNow] = useState(() => new Date())
   const announcedRef = useRef<number | null>(null)
@@ -58,14 +59,14 @@ export function DisplayPage() {
     if (announcedRef.current === currentToken) return
 
     announcedRef.current = currentToken
-    speak(buildAnnouncementText(currentToken, roomNumber))
-  }, [currentToken, roomNumber])
+    speak(messages.announcement(currentToken, roomNumber), { language })
+  }, [currentToken, language, messages, roomNumber])
 
   if (loading) {
     return (
       <DisplayLayout>
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-2xl text-slate-400">माहिती लोड होत आहे…</p>
+          <p className="text-2xl text-slate-400">{t.loading}</p>
         </div>
       </DisplayLayout>
     )
@@ -75,10 +76,8 @@ export function DisplayPage() {
     return (
       <DisplayLayout>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-          <p className="text-3xl font-bold">{error ?? 'हा डिस्प्ले उपलब्ध नाही.'}</p>
-          <p className="text-lg text-slate-400">
-            कृपया रिसेप्शनशी संपर्क साधा किंवा URL तपासा.
-          </p>
+          <p className="text-3xl font-bold">{error ?? t.unavailable}</p>
+          <p className="text-lg text-slate-400">{t.checkUrl}</p>
           {doctorId ? (
             <p className="text-sm text-slate-500">{displayUrl(doctorId)}</p>
           ) : null}
@@ -99,15 +98,16 @@ export function DisplayPage() {
             {data.hospital_name}
           </p>
           <p className="mt-0.5 text-base text-slate-400">
-            {formatDateWithWeekday(now, timezone)}
+            {messages.dateWithWeekday(now, timezone)}
           </p>
         </div>
 
         <div className="flex items-center gap-6">
           <p className="token-digits flex items-center gap-2 text-2xl font-bold text-slate-300">
             <Clock className="size-6" aria-hidden="true" />
-            {formatTime(now, timezone)}
+            {messages.time(now, timezone)}
           </p>
+          <LanguageSwitcher tone="dark" className="no-print" />
           <AnnouncementToggle className="no-print" />
         </div>
       </header>
@@ -117,7 +117,7 @@ export function DisplayPage() {
         <p className="text-3xl font-extrabold text-brand-300 sm:text-4xl">{data.doctor_name}</p>
         <p className="mt-1 text-xl text-slate-300">
           {data.department}
-          {data.room_number ? ` · ${roomShortLabel(data.room_number)}` : ''}
+          {data.room_number ? ` · ${messages.roomShort(data.room_number)}` : ''}
         </p>
       </div>
 
@@ -125,7 +125,7 @@ export function DisplayPage() {
       <main className="flex flex-1 flex-col items-center justify-center px-8 py-10">
         {queueEmpty ? (
           <div className="flex flex-col items-center gap-4 text-center">
-            <p className="text-4xl font-bold text-slate-300">आजची रांग सुरू झालेली नाही.</p>
+            <p className="text-4xl font-bold text-slate-300">{t.emptyQueue}</p>
             <p className="text-xl text-slate-500">{data.display_message}</p>
           </div>
         ) : (
@@ -133,14 +133,14 @@ export function DisplayPage() {
             {/* Current token — the one thing readable from the far wall. */}
             <div className="flex flex-col items-center justify-center rounded-3xl bg-slate-800 px-6 py-10">
               <p className="mb-4 text-2xl font-bold tracking-wide text-brand-300 uppercase sm:text-3xl">
-                सध्या सुरू असलेला क्रमांक
+                {t.currentLabel}
               </p>
               <div aria-live="polite" aria-atomic="true">
                 <TokenDisplay token={data.current_token} size="display" tone="light" emptyText="—" />
               </div>
               {data.current_token !== null && data.room_number ? (
                 <p className="mt-6 text-3xl font-bold text-brand-200 sm:text-4xl">
-                  {roomShortLabel(data.room_number)}
+                  {messages.roomShort(data.room_number)}
                 </p>
               ) : null}
             </div>
@@ -149,7 +149,7 @@ export function DisplayPage() {
             <div className="flex flex-col items-center justify-center gap-6 rounded-3xl bg-slate-800/60 px-6 py-10">
               <div className="flex flex-col items-center">
                 <p className="mb-3 text-xl font-bold tracking-wide text-slate-400 uppercase">
-                  पुढील क्रमांक
+                  {t.nextLabel}
                 </p>
                 <div className="text-slate-200">
                   <TokenDisplay
@@ -166,10 +166,10 @@ export function DisplayPage() {
 
               <div className="flex flex-col items-center">
                 <p className="text-xl font-bold tracking-wide text-slate-400 uppercase">
-                  प्रतीक्षेत
+                  {t.waitingLabel}
                 </p>
                 <p className="token-digits mt-1 text-6xl font-extrabold text-white">
-                  {toMarathiNumber(data.waiting_count)}
+                  {messages.count(data.waiting_count)}
                 </p>
               </div>
             </div>

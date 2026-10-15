@@ -4,16 +4,11 @@ import { Navigate, NavLink } from 'react-router-dom'
 
 import { ConnectionIndicator } from '../components/common/ConnectionIndicator'
 import { LoadingState } from '../components/common/Feedback'
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { useStaffAuth } from '../hooks/useStaffAuth'
-import { cn, formatDateWithWeekday } from '../lib/utils'
-
-const NAV_ITEMS = [
-  { to: '/staff/dashboard', label: 'रांग', icon: LayoutList },
-  { to: '/staff/doctors', label: 'डॉक्टर', icon: Stethoscope },
-  { to: '/staff/settings', label: 'सेटिंग्ज', icon: Settings },
-  { to: '/qr', label: 'QR कोड', icon: QrCode },
-]
+import { cn } from '../lib/utils'
 
 /**
  * The frame for the reception area.
@@ -25,9 +20,19 @@ const NAV_ITEMS = [
 export function StaffLayout({ children }: { children: ReactNode }) {
   const { session, loading, signOut } = useStaffAuth()
   const { hospital } = useHospital()
+  const { messages } = useLanguage()
+  const m = messages.ui
+
+  // Built here rather than at module scope because the labels are translated.
+  const navItems = [
+    { to: '/staff/dashboard', label: m.nav.queue, icon: LayoutList },
+    { to: '/staff/doctors', label: m.nav.doctors, icon: Stethoscope },
+    { to: '/staff/settings', label: m.nav.settings, icon: Settings },
+    { to: '/qr', label: m.nav.qr, icon: QrCode },
+  ]
 
   if (loading) {
-    return <LoadingState message="लॉगिन तपासत आहे…" />
+    return <LoadingState message={m.staff.checkingLogin} />
   }
 
   if (!session) {
@@ -46,17 +51,17 @@ export function StaffLayout({ children }: { children: ReactNode }) {
             </div>
             <div>
               <p className="text-base font-bold text-slate-900">
-                {hospital?.name ?? 'आपल्या रुग्णालयाचे नाव'}
+                {hospital?.name ?? m.common.hospitalFallback}
               </p>
               <p className="text-xs text-slate-500">
-                {formatDateWithWeekday(new Date(), timezone)}
+                {messages.dateWithWeekday(new Date(), timezone)}
               </p>
             </div>
           </div>
 
-          <nav aria-label="मुख्य मेनू" className="order-3 w-full sm:order-none sm:w-auto">
+          <nav aria-label={m.nav.label} className="order-3 w-full sm:order-none sm:w-auto">
             <ul className="flex flex-wrap gap-1">
-              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+              {navItems.map(({ to, label, icon: Icon }) => (
                 <li key={to}>
                   <NavLink
                     to={to}
@@ -79,11 +84,12 @@ export function StaffLayout({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-3">
             <ConnectionIndicator />
-            <div className="hidden text-right sm:block">
+            <LanguageSwitcher className="hidden sm:inline-flex" />
+            <div className="hidden text-right lg:block">
               <p className="text-sm font-semibold text-slate-800">
                 {session.fullName || session.email}
               </p>
-              <p className="text-xs text-slate-500">रिसेप्शन</p>
+              <p className="text-xs text-slate-500">{m.staff.role}</p>
             </div>
             <button
               type="button"
@@ -91,7 +97,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
               className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
               <LogOut className="size-4" aria-hidden="true" />
-              <span className="hidden sm:inline">बाहेर पडा</span>
+              <span className="hidden sm:inline">{m.staff.signOut}</span>
             </button>
           </div>
         </div>

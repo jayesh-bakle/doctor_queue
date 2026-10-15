@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 
-import { PATIENT_TYPE_LABELS, roomShortLabel } from '../../lib/queue'
+import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 import { validateRegistration, type RegistrationField } from '../../lib/validation'
 import type { PatientType } from '../../types/database'
@@ -62,6 +62,9 @@ export function RegistrationForm({
   const nameRef = useRef<HTMLInputElement>(null)
   const doctorGroupRef = useRef<HTMLFieldSetElement>(null)
 
+  const { messages } = useLanguage()
+  const t = messages.ui.registrationForm
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -69,7 +72,7 @@ export function RegistrationForm({
     // fire submit on a double-tap before the disabled state paints.
     if (submitting) return
 
-    const result = validateRegistration({ patientName, mobile, doctorId, patientType })
+    const result = validateRegistration({ patientName, mobile, doctorId, patientType }, messages)
     setErrors(result.errors)
 
     if (!result.valid) {
@@ -93,7 +96,7 @@ export function RegistrationForm({
       {/* ---- Patient name ------------------------------------------------- */}
       <div className="flex flex-col gap-2">
         <label htmlFor={nameId} className="text-base font-semibold text-slate-800">
-          रुग्णाचे नाव <span className="text-red-600">*</span>
+          {t.nameLabel} <span className="text-red-600">*</span>
         </label>
         <input
           ref={nameRef}
@@ -102,7 +105,7 @@ export function RegistrationForm({
           type="text"
           value={patientName}
           onChange={(event) => setPatientName(event.target.value)}
-          placeholder="उदा. संदीप जाधव"
+          placeholder={t.namePlaceholder}
           autoComplete="name"
           enterKeyHint="next"
           maxLength={120}
@@ -121,7 +124,7 @@ export function RegistrationForm({
       {/* ---- Mobile (optional) -------------------------------------------- */}
       <div className="flex flex-col gap-2">
         <label htmlFor={mobileId} className="text-base font-semibold text-slate-800">
-          मोबाईल क्रमांक <span className="text-sm font-normal text-slate-500">(ऐच्छिक)</span>
+          {t.mobileLabel} <span className="text-sm font-normal text-slate-500">{t.optional}</span>
         </label>
         <input
           id={mobileId}
@@ -130,7 +133,7 @@ export function RegistrationForm({
           inputMode="numeric"
           value={mobile}
           onChange={(event) => setMobile(event.target.value)}
-          placeholder="उदा. ९८७६५ ४३२१०"
+          placeholder={t.mobilePlaceholder}
           autoComplete="tel-national"
           enterKeyHint="next"
           maxLength={16}
@@ -144,9 +147,7 @@ export function RegistrationForm({
             {errors.mobile}
           </p>
         ) : (
-          <p className="text-sm text-slate-500">
-            दिल्यास रिसेप्शनला आपल्याशी संपर्क साधता येईल. न दिल्यासही चालेल.
-          </p>
+          <p className="text-sm text-slate-500">{t.mobileHint}</p>
         )}
       </div>
 
@@ -159,7 +160,7 @@ export function RegistrationForm({
         className="flex flex-col gap-3"
       >
         <legend className="mb-3 text-base font-semibold text-slate-800">
-          डॉक्टर निवडा <span className="text-red-600">*</span>
+          {t.doctorLegend} <span className="text-red-600">*</span>
         </legend>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -194,7 +195,7 @@ export function RegistrationForm({
                     <span className="text-sm text-slate-600">{doctor.department}</span>
                   ) : null}
                   {doctor.roomNumber ? (
-                    <span className="text-sm text-slate-500">{roomShortLabel(doctor.roomNumber)}</span>
+                    <span className="text-sm text-slate-500">{messages.roomShort(doctor.roomNumber)}</span>
                   ) : null}
                 </span>
               </label>
@@ -212,7 +213,7 @@ export function RegistrationForm({
 
       {/* ---- Patient type -------------------------------------------------- */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-3 text-base font-semibold text-slate-800">रुग्णाचा प्रकार</legend>
+        <legend className="mb-3 text-base font-semibold text-slate-800">{t.patientTypeLegend}</legend>
         <div className="grid grid-cols-2 gap-3">
           {(['NEW', 'FOLLOWUP'] as const).map((type) => {
             const selected = patientType === type
@@ -235,7 +236,7 @@ export function RegistrationForm({
                   className="size-5 shrink-0 accent-brand-700"
                 />
                 <span className="text-base font-semibold text-slate-800">
-                  {PATIENT_TYPE_LABELS[type]}
+                  {messages.patientType[type]}
                 </span>
               </label>
             )
@@ -246,7 +247,7 @@ export function RegistrationForm({
       {/* ---- Privacy note -------------------------------------------------- */}
       <p className="flex items-start gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm leading-relaxed text-brand-900">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        ही नोंद फक्त रांगेचे व्यवस्थापन करण्यासाठी आहे. कृपया वैद्यकीय माहिती येथे भरू नका.
+        {t.privacyNote}
       </p>
 
       {/* ---- Submit error -------------------------------------------------- */}
@@ -267,7 +268,7 @@ export function RegistrationForm({
         loading={submitting}
         icon={submitting ? <Loader2 className="size-5 animate-spin" aria-hidden="true" /> : undefined}
       >
-        {submitting ? 'नोंदणी सुरू आहे…' : 'टोकन मिळवा'}
+        {submitting ? t.submitting : t.submit}
       </Button>
     </form>
   )

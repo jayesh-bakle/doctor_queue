@@ -1,22 +1,24 @@
 import { describe, expect, it } from 'vitest'
 
-import type { QueueStatus } from '../src/types/database'
+import { getMessages } from '../src/lib/i18n'
 import {
-  buildAnnouncementText,
   countPatientsAhead,
   countRemaining,
   deriveSnapshot,
-  describeSituation,
   estimateWaitMinutes,
   findNextWaitingToken,
-  PATIENT_TYPE_LABELS,
-  patientsAheadLabel,
-  roomInstruction,
-  roomShortLabel,
   sortByToken,
-  STATUS_LABELS,
-  waitingCountLabel,
 } from '../src/lib/queue'
+import type { QueueStatus } from '../src/types/database'
+
+/**
+ * `src/lib/queue.ts` is now the queue *rules* only — no wording. The sentences
+ * these tests check moved into the locale modules, so they are reached through
+ * `getMessages('mr')`. Marathi is the default and the text is unchanged, which
+ * is why the assertions below still read exactly as they did before the
+ * language switcher existed.
+ */
+const mr = getMessages('mr')
 
 interface Row {
   tokenNumber: number
@@ -168,37 +170,37 @@ describe('estimateWaitMinutes', () => {
 
 describe('Marathi wording', () => {
   it('labels every status in Marathi', () => {
-    expect(STATUS_LABELS.WAITING).toBe('प्रतीक्षेत')
-    expect(STATUS_LABELS.CALLED).toBe('बोलावले')
-    expect(STATUS_LABELS.IN_CONSULTATION).toBe('तपासणी सुरू')
-    expect(STATUS_LABELS.COMPLETED).toBe('पूर्ण')
-    expect(STATUS_LABELS.SKIPPED).toBe('वगळले')
+    expect(mr.status.WAITING).toBe('प्रतीक्षेत')
+    expect(mr.status.CALLED).toBe('बोलावले')
+    expect(mr.status.IN_CONSULTATION).toBe('तपासणी सुरू')
+    expect(mr.status.COMPLETED).toBe('पूर्ण')
+    expect(mr.status.SKIPPED).toBe('वगळले')
   })
 
   it('labels both patient types in Marathi', () => {
-    expect(PATIENT_TYPE_LABELS.NEW).toBe('नवीन रुग्ण')
-    expect(PATIENT_TYPE_LABELS.FOLLOWUP).toBe('पुनर्तपासणी')
+    expect(mr.patientType.NEW).toBe('नवीन रुग्ण')
+    expect(mr.patientType.FOLLOWUP).toBe('पुनर्तपासणी')
   })
 
   it('renders the room number in Marathi numerals', () => {
-    expect(roomShortLabel('1')).toBe('कक्ष क्र. १')
-    expect(roomInstruction('2')).toBe('कृपया तपासणी कक्ष क्रमांक २ मध्ये जा.')
+    expect(mr.roomShort('1')).toBe('कक्ष क्र. १')
+    expect(mr.roomInstruction('2')).toBe('कृपया तपासणी कक्ष क्रमांक २ मध्ये जा.')
   })
 
   it('builds the spoken announcement exactly as the spec writes it', () => {
-    expect(buildAnnouncementText(27, '1')).toBe(
+    expect(mr.announcement(27, '1')).toBe(
       'टोकन क्रमांक ०२७, कृपया तपासणी कक्ष क्रमांक १ मध्ये या.',
     )
   })
 
   it('pads the token and the room number differently, on purpose', () => {
-    expect(buildAnnouncementText(5, '1')).toContain('००५')
-    expect(buildAnnouncementText(5, '1')).toContain('कक्ष क्रमांक १ मध्ये')
+    expect(mr.announcement(5, '1')).toContain('००५')
+    expect(mr.announcement(5, '1')).toContain('कक्ष क्रमांक १ मध्ये')
   })
 
   it('labels queue position and waiting count', () => {
-    expect(patientsAheadLabel(3)).toBe('आपल्यापुढे: ३ रुग्णे')
-    expect(waitingCountLabel(12)).toBe('प्रतीक्षेत: १२')
+    expect(mr.patientsAhead(3)).toBe('आपल्यापुढे: ३ रुग्णे')
+    expect(mr.waitingCount(12)).toBe('प्रतीक्षेत: १२')
   })
 })
 
@@ -206,7 +208,7 @@ describe('describeSituation', () => {
   const base = { tokenNumber: 7, patientsAhead: 3, currentToken: 5, roomNumber: '1' }
 
   it('tells a called patient it is their turn and to go to the room', () => {
-    const situation = describeSituation({ ...base, status: 'CALLED' })
+    const situation = mr.describeSituation({ ...base, status: 'CALLED' })
     expect(situation.tone).toBe('now')
     expect(situation.headline).toBe('आता आपला क्रमांक आहे.')
     expect(situation.detail).toBe('कृपया तपासणी कक्ष क्रमांक १ मध्ये जा.')
@@ -214,45 +216,47 @@ describe('describeSituation', () => {
   })
 
   it('tells an in-consultation patient to stay in the room', () => {
-    const situation = describeSituation({ ...base, status: 'IN_CONSULTATION' })
+    const situation = mr.describeSituation({ ...base, status: 'IN_CONSULTATION' })
     expect(situation.headline).toBe('आपली तपासणी सुरू आहे.')
     expect(situation.detail).toContain('कक्ष क्रमांक १')
   })
 
   it('urges a waiting patient with nobody ahead to be ready', () => {
-    const situation = describeSituation({ ...base, status: 'WAITING', patientsAhead: 0 })
+    const situation = mr.describeSituation({ ...base, status: 'WAITING', patientsAhead: 0 })
     expect(situation.headline).toBe('आपला क्रमांक जवळ आला आहे.')
     expect(situation.urgent).toBe(true)
   })
 
   it('warns a waiting patient who is nearly next', () => {
-    const situation = describeSituation({ ...base, status: 'WAITING', patientsAhead: 2 })
+    const situation = mr.describeSituation({ ...base, status: 'WAITING', patientsAhead: 2 })
     expect(situation.headline).toBe('आपला क्रमांक जवळ येत आहे.')
     expect(situation.detail).toContain('२ रुग्णे')
   })
 
   it('asks a waiting patient further back simply to wait', () => {
-    const situation = describeSituation({ ...base, status: 'WAITING', patientsAhead: 6 })
+    const situation = mr.describeSituation({ ...base, status: 'WAITING', patientsAhead: 6 })
     expect(situation.headline).toBe('आपली नोंदणी झाली आहे. कृपया प्रतीक्षा करा.')
     expect(situation.detail).toBe('६ रुग्णे आपल्यापुढे आहेत.')
   })
 
   it('sends a skipped patient to reception instead of leaving them waiting', () => {
-    const situation = describeSituation({ ...base, status: 'SKIPPED' })
+    const situation = mr.describeSituation({ ...base, status: 'SKIPPED' })
     expect(situation.headline).toBe('आपला क्रमांक वगळण्यात आला आहे.')
     expect(situation.detail).toBe('कृपया रिसेप्शनशी संपर्क साधा.')
     expect(situation.urgent).toBe(true)
   })
 
   it('lets a completed patient leave, even while the queue is still moving', () => {
-    const situation = describeSituation({ ...base, status: 'COMPLETED', patientsAhead: 0 })
+    const situation = mr.describeSituation({ ...base, status: 'COMPLETED', patientsAhead: 0 })
     expect(situation.tone).toBe('done')
     expect(situation.urgent).toBe(false)
   })
 
   it('lets a terminal status win over a queue that still looks busy', () => {
     // A patient who has been seen must not be told to keep waiting.
-    expect(describeSituation({ ...base, status: 'COMPLETED', patientsAhead: 9 }).tone).toBe('done')
-    expect(describeSituation({ ...base, status: 'SKIPPED', patientsAhead: 9 }).tone).toBe('attention')
+    expect(mr.describeSituation({ ...base, status: 'COMPLETED', patientsAhead: 9 }).tone).toBe('done')
+    expect(mr.describeSituation({ ...base, status: 'SKIPPED', patientsAhead: 9 }).tone).toBe(
+      'attention',
+    )
   })
 })

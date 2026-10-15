@@ -1,7 +1,7 @@
 import { Building2, CalendarDays, DoorOpen, Stethoscope, Timer } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { minutesLabel, toMarathiDigits } from '../../lib/marathiDigits'
+import { useLanguage } from '../../hooks/useLanguage'
 import { estimateWaitMinutes } from '../../lib/queue'
 import { cn } from '../../lib/utils'
 
@@ -54,6 +54,9 @@ export function TokenDetailsCard({
   showEstimate = false,
   className,
 }: TokenDetailsCardProps) {
+  const { messages } = useLanguage()
+  const t = messages.ui.tokenDetails
+
   const showWait =
     showEstimate && patientsAhead !== undefined && patientsAhead > 0
 
@@ -66,32 +69,32 @@ export function TokenDetailsCard({
       <div className="divide-y divide-slate-100">
         <DetailRow
           icon={<Stethoscope className="size-4" aria-hidden="true" />}
-          label="डॉक्टर"
+          label={t.doctor}
           value={doctorName}
         />
         {department ? (
           <DetailRow
             icon={<Building2 className="size-4" aria-hidden="true" />}
-            label="विभाग"
+            label={t.department}
             value={department}
           />
         ) : null}
         {roomNumber ? (
           <DetailRow
             icon={<DoorOpen className="size-4" aria-hidden="true" />}
-            label="तपासणी कक्ष"
-            value={toMarathiDigits(roomNumber, 0)}
+            label={t.room}
+            value={messages.digits(roomNumber, 0)}
           />
         ) : null}
         <DetailRow
           icon={<CalendarDays className="size-4" aria-hidden="true" />}
-          label="दिनांक"
+          label={t.date}
           value={queueDateLabel}
         />
         {hospitalName ? (
           <DetailRow
             icon={<Building2 className="size-4" aria-hidden="true" />}
-            label="रुग्णालय"
+            label={t.hospital}
             value={hospitalName}
           />
         ) : null}
@@ -101,11 +104,9 @@ export function TokenDetailsCard({
         <div className="border-t border-slate-100 py-4">
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Timer className="size-4 text-slate-400" aria-hidden="true" />
-            अंदाजे प्रतीक्षा वेळ: {minutesLabel(waitMinutes)}
+            {t.waitPrefix} {messages.minutes(waitMinutes)}
           </p>
-          <p className="mt-1 pl-6 text-xs text-slate-500">
-            हा फक्त अंदाज आहे — प्रत्यक्ष वेळ थोडा कमी-जास्त होऊ शकतो.
-          </p>
+          <p className="mt-1 pl-6 text-xs text-slate-500">{t.waitDisclaimer}</p>
         </div>
       ) : null}
     </div>

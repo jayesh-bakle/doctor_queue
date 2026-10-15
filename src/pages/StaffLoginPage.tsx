@@ -5,10 +5,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../components/common/Button'
 import { LoadingState } from '../components/common/Feedback'
 import { useHospital } from '../hooks/useHospital'
+import { useLanguage } from '../hooks/useLanguage'
 import { useStaffAuth } from '../hooks/useStaffAuth'
 import { DEMO_CREDENTIALS } from '../lib/datasource/demoDataSource'
 import { IS_DEMO_MODE } from '../lib/env'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
+import { logTechnicalError, toUserMessage } from '../lib/errors'
 
 const INPUT_CLASSES =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 ' +
@@ -25,6 +26,8 @@ const INPUT_CLASSES =
 export function StaffLoginPage() {
   const { signIn, session, loading } = useStaffAuth()
   const { hospital } = useHospital()
+  const { messages } = useLanguage()
+  const t = messages.ui.login
   const navigate = useNavigate()
 
   const emailId = useId()
@@ -55,13 +58,13 @@ export function StaffLoginPage() {
       navigate('/staff/dashboard', { replace: true })
     } catch (caught) {
       logTechnicalError('StaffLoginPage — signIn', caught)
-      setError(toMarathiError(caught))
+      setError(toUserMessage(caught, messages))
       setSubmitting(false)
     }
   }
 
   if (loading) {
-    return <LoadingState message="लॉगिन तपासत आहे…" />
+    return <LoadingState message={t.checking} />
   }
 
   return (
@@ -72,9 +75,9 @@ export function StaffLoginPage() {
             <HeartPulse className="size-7" aria-hidden="true" />
           </div>
           <h1 className="text-xl font-extrabold text-slate-900">
-            {hospital?.name ?? 'आपल्या रुग्णालयाचे नाव'}
+            {hospital?.name ?? messages.ui.common.hospitalFallback}
           </h1>
-          <p className="mt-1 text-sm text-slate-600">रिसेप्शन लॉगिन</p>
+          <p className="mt-1 text-sm text-slate-600">{t.subtitle}</p>
         </div>
 
         <form
@@ -84,7 +87,7 @@ export function StaffLoginPage() {
         >
           <div className="flex flex-col gap-2">
             <label htmlFor={emailId} className="text-sm font-semibold text-slate-800">
-              ईमेल
+              {t.email}
             </label>
             <input
               id={emailId}
@@ -99,7 +102,7 @@ export function StaffLoginPage() {
 
           <div className="flex flex-col gap-2">
             <label htmlFor={passwordId} className="text-sm font-semibold text-slate-800">
-              पासवर्ड
+              {t.password}
             </label>
             <input
               id={passwordId}
@@ -131,12 +134,12 @@ export function StaffLoginPage() {
             loading={submitting}
             icon={<LogIn className="size-5" aria-hidden="true" />}
           >
-            {submitting ? 'लॉगिन होत आहे…' : 'लॉगिन करा'}
+            {submitting ? t.submitting : t.submit}
           </Button>
 
           {IS_DEMO_MODE ? (
             <p className="rounded-xl border border-dashed border-purple-300 bg-purple-50 px-3 py-2.5 text-xs text-purple-900">
-              <strong className="font-semibold">डेमो मोड:</strong> {DEMO_CREDENTIALS.email} /{' '}
+              <strong className="font-semibold">{t.demoMode}</strong> {DEMO_CREDENTIALS.email} /{' '}
               {DEMO_CREDENTIALS.password}
             </p>
           ) : null}
@@ -144,7 +147,7 @@ export function StaffLoginPage() {
 
         <p className="mt-5 text-center text-sm text-slate-500">
           <Link to="/" className="font-semibold text-brand-700 hover:underline">
-            मुख्य पानावर परत जा
+            {t.backHome}
           </Link>
         </p>
       </div>

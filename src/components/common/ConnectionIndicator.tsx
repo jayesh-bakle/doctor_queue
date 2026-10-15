@@ -1,5 +1,6 @@
 import { Wifi, WifiOff } from 'lucide-react'
 
+import { useLanguage } from '../../hooks/useLanguage'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { cn } from '../../lib/utils'
 
@@ -12,6 +13,7 @@ import { cn } from '../../lib/utils'
  */
 export function ConnectionIndicator({ className }: { className?: string }) {
   const online = useOnlineStatus()
+  const { messages } = useLanguage()
 
   return (
     <span
@@ -30,7 +32,7 @@ export function ConnectionIndicator({ className }: { className?: string }) {
       ) : (
         <WifiOff className="size-4" aria-hidden="true" />
       )}
-      {online ? 'जोडलेले आहे' : 'कनेक्शन खंडित'}
+      {online ? messages.ui.common.online : messages.ui.common.connectionLost}
     </span>
   )
 }

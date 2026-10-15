@@ -7,10 +7,10 @@ import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/Feedback'
 import { DoctorForm, type DoctorFormValues } from '../components/staff/DoctorForm'
 import { useDoctors } from '../hooks/useDoctors'
+import { useLanguage } from '../hooks/useLanguage'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
-import { logTechnicalError, toMarathiError } from '../lib/errors'
-import { roomShortLabel } from '../lib/queue'
+import { logTechnicalError, toUserMessage } from '../lib/errors'
 import { cn } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -23,6 +23,8 @@ import { StaffLayout } from '../layouts/StaffLayout'
  */
 export function DoctorsPage() {
   const { doctors, loading, error, reload } = useDoctors(true)
+  const { messages } = useLanguage()
+  const t = messages.ui.doctors
 
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -38,7 +40,7 @@ export function DoctorsPage() {
       await reload()
     } catch (caught) {
       logTechnicalError('DoctorsPage — createDoctor', caught)
-      setActionError(toMarathiError(caught))
+      setActionError(toUserMessage(caught, messages))
     } finally {
       setSubmitting(false)
     }
@@ -53,7 +55,7 @@ export function DoctorsPage() {
       await reload()
     } catch (caught) {
       logTechnicalError('DoctorsPage — updateDoctor', caught)
-      setActionError(toMarathiError(caught))
+      setActionError(toUserMessage(caught, messages))
     } finally {
       setSubmitting(false)
     }
@@ -64,8 +66,8 @@ export function DoctorsPage() {
       <div className="flex flex-col gap-5">
         <Card>
           <CardHeader
-            title="डॉक्टर व्यवस्थापन"
-            description="रांगेत दिसणारे डॉक्टर येथे व्यवस्थापित करा."
+            title={t.title}
+            description={t.description}
             action={
               !adding ? (
                 <Button
@@ -75,7 +77,7 @@ export function DoctorsPage() {
                     setEditingId(null)
                   }}
                 >
-                  नवीन डॉक्टर
+                  {t.addNew}
                 </Button>
               ) : null
             }
@@ -85,7 +87,7 @@ export function DoctorsPage() {
             <CardBody className="border-b border-slate-200 bg-slate-50">
               <DoctorForm
                 submitting={submitting}
-                submitLabel="डॉक्टर जोडा"
+                submitLabel={t.addSubmit}
                 onSubmit={(values) => void handleCreate(values)}
                 onCancel={() => setAdding(false)}
               />
@@ -101,13 +103,13 @@ export function DoctorsPage() {
           ) : null}
 
           {loading ? (
-            <LoadingState message="डॉक्टरांची माहिती लोड होत आहे…" />
+            <LoadingState message={t.loading} />
           ) : error ? (
             <ErrorState message={error} onRetry={() => void reload()} />
           ) : doctors.length === 0 ? (
             <EmptyState
-              title="अजून एकही डॉक्टर जोडलेले नाहीत."
-              description="रांग सुरू करण्यासाठी किमान एक डॉक्टर जोडा."
+              title={t.emptyTitle}
+              description={t.emptyDescription}
               icon={<UserRound className="size-7" aria-hidden="true" />}
             />
           ) : (
@@ -135,13 +137,13 @@ export function DoctorsPage() {
                               {doctor.name}
                               {!doctor.isActive ? (
                                 <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                  बंद
+                                  {t.inactiveBadge}
                                 </span>
                               ) : null}
                             </p>
                             <p className="text-sm text-slate-600">
                               {doctor.department || '—'}
-                              {doctor.roomNumber ? ` · ${roomShortLabel(doctor.roomNumber)}` : ''}
+                              {doctor.roomNumber ? ` · ${messages.roomShort(doctor.roomNumber)}` : ''}
                             </p>
                           </div>
                         </div>
@@ -155,7 +157,7 @@ export function DoctorsPage() {
                                 : 'border-slate-300 bg-slate-100 text-slate-600',
                             )}
                           >
-                            {doctor.isActive ? 'रांग सुरू' : 'रांग बंद'}
+                            {doctor.isActive ? t.active : t.inactive}
                           </span>
                           <Link to={`/qr?doctorId=${doctor.id}`}>
                             <Button
@@ -163,7 +165,7 @@ export function DoctorsPage() {
                               variant="ghost"
                               icon={<QrCode className="size-4" aria-hidden="true" />}
                             >
-                              QR
+                              {t.qr}
                             </Button>
                           </Link>
                           <a href={displayUrl(doctor.id)} target="_blank" rel="noreferrer">
@@ -172,7 +174,7 @@ export function DoctorsPage() {
                               variant="ghost"
                               icon={<ExternalLink className="size-4" aria-hidden="true" />}
                             >
-                              डिस्प्ले
+                              {t.display}
                             </Button>
                           </a>
                           <Button
@@ -184,7 +186,7 @@ export function DoctorsPage() {
                               setAdding(false)
                             }}
                           >
-                            बदला
+                            {t.edit}
                           </Button>
                         </div>
                       </div>
