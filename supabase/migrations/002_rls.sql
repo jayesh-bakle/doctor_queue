@@ -3,6 +3,7 @@
 -- Doctor Queue System — helper functions, row level security, grants, realtime
 --
 -- Run AFTER 001_initial_schema.sql, BEFORE 003_queue_functions.sql.
+-- (004_fix_doctor_delete.sql follows 003.)
 --
 -- The security model in one paragraph:
 --   anon  (a patient's phone, unauthenticated) has NO privileges at all on

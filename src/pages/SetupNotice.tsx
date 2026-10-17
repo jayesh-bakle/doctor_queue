@@ -31,7 +31,7 @@ VITE_SUPABASE_ANON_KEY=your-publishable-anon-key
 VITE_DEMO_MODE=false`}
             </pre>
             <p className="mt-2 text-sm text-slate-600">
-              Then run the three migrations in <code>supabase/migrations/</code> in order, followed
+              Then run the four migrations in <code>supabase/migrations/</code> in order, followed
               by <code>supabase/seed.sql</code>. See the README for the full walkthrough.
             </p>
           </section>

@@ -230,7 +230,7 @@ export const en: Messages = {
     DOCTOR_NOT_FOUND: 'No queue is available right now. Please speak to reception.',
     DOCTOR_INACTIVE: 'This queue is currently closed. Please speak to reception.',
     DOCTOR_HAS_HISTORY:
-      'This doctor has past patient records, so they cannot be deleted. Close their queue instead.',
+      'This doctor has past patient records, so they cannot be deleted. To stop new registrations, open Edit and untick "Queue open" — the past records stay safe.',
     HOSPITAL_NOT_FOUND: 'No queue is available right now. Please speak to reception.',
     TOKEN_NOT_FOUND: 'That token number was not found. Please speak to reception.',
     NOT_AUTHORIZED: 'You are not allowed to do that. Please sign in again.',
@@ -347,7 +347,7 @@ export const en: Messages = {
       delete: 'Delete',
       deleteConfirm: (doctorName) => `Delete ${doctorName}?`,
       deleteWarning:
-        'This cannot be undone. A doctor with past patient records cannot be deleted — close their queue instead.',
+        'This cannot be undone. A doctor with past patient records cannot be deleted — untick "Queue open" in Edit instead.',
     },
 
     login: {

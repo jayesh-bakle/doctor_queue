@@ -131,7 +131,8 @@ Doctor-queue-system/
 │   ├── migrations/
 │   │   ├── 001_initial_schema.sql Tables, enums, indexes, the unique token constraint
 │   │   ├── 002_rls.sql            Row level security, the queue snapshot function
-│   │   └── 003_queue_functions.sql RPCs, the advisory lock, the queue_events trigger
+│   │   ├── 003_queue_functions.sql RPCs, the advisory lock, the queue_events trigger
+│   │   └── 004_fix_doctor_delete.sql Guards the trigger during a doctor cascade delete
 │   └── seed.sql                   Sample hospital and two doctors
 │
 ├── src/
@@ -250,7 +251,7 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Three migration files, run **in order**. Together they are idempotent, so re-running them is safe
+Four migration files, run **in order**. Together they are idempotent, so re-running them is safe
 and nothing is ever dropped.
 
 | File | What it creates |
@@ -258,6 +259,7 @@ and nothing is ever dropped.
 | `001_initial_schema.sql` | The `hospitals`, `doctors`, `queue_entries`, `staff_users` and `queue_events` tables, the `patient_type` and `queue_status` enums, indexes, and the `unique (doctor_id, queue_date, token_number)` constraint |
 | `002_rls.sql` | Row level security on every table, the helper functions that avoid policy recursion, and the realtime publication |
 | `003_queue_functions.sql` | `register_patient()`, `get_token_status()`, `get_public_queue()`, `call_next_patient()`, the status transitions, the `queue_events` trigger, and the execution grants |
+| `004_fix_doctor_delete.sql` | Guards the `queue_events` trigger so deleting a doctor who has queue history no longer fails with a foreign-key error during the cascade |
 
 ### Running them
 
@@ -265,7 +267,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, then `003_queue_functions.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, then `004_fix_doctor_delete.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 **Option B — the Supabase CLI**
@@ -353,7 +355,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. The three migrations and `seed.sql` must already have been run.
+`npm run dev`. The four migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -535,7 +537,7 @@ goes with it, and every request they had in flight stops working.
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all three migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all four migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.

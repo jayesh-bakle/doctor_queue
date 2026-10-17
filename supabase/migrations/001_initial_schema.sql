@@ -3,7 +3,8 @@
 -- Doctor Queue System — tables, types, indexes, constraints
 --
 -- Safe to re-run: every statement is guarded, and nothing here drops data.
--- Run this FIRST, then 002_rls.sql, then 003_queue_functions.sql.
+-- Run this FIRST, then 002_rls.sql, 003_queue_functions.sql, and finally
+-- 004_fix_doctor_delete.sql.
 -- =============================================================================
 
 create extension if not exists pgcrypto;
