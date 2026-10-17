@@ -494,6 +494,34 @@ describe('doctor management', () => {
       code: 'DOCTOR_NOT_FOUND',
     })
   })
+
+  it('deletes a doctor who has never had a patient', async () => {
+    const created = await demoDataSource.createDoctor({
+      name: 'डॉ. चुकीचे नाव',
+      department: 'सामान्य वैद्यक',
+      roomNumber: '4',
+      isActive: true,
+    })
+
+    await demoDataSource.deleteDoctor(created.id)
+
+    const all = await demoDataSource.listDoctors({ includeInactive: true })
+    expect(all.map((d) => d.id)).not.toContain(created.id)
+  })
+
+  it('refuses to delete a doctor with patient history, rather than cascading it away', async () => {
+    const { first } = await twoDoctors(demoDataSource)
+    await register(demoDataSource, first)
+
+    await expect(demoDataSource.deleteDoctor(first)).rejects.toMatchObject({
+      code: 'DOCTOR_HAS_HISTORY',
+    })
+
+    // Both the doctor and the patient record survive — deactivating is the
+    // supported way to take a real doctor off the queue.
+    const all = await demoDataSource.listDoctors({ includeInactive: true })
+    expect(all.map((d) => d.id)).toContain(first)
+  })
 })
 
 describe('hospital settings', () => {

@@ -160,6 +160,33 @@ export const supabaseDataSource: QueueDataSource = {
     return toDoctorOption(data)
   },
 
+  async deleteDoctor(id: string): Promise<void> {
+    const supabase = getSupabase()
+
+    // Both `queue_entries.doctor_id` and `queue_events.doctor_id` are
+    // `on delete cascade`, so a bare DELETE would quietly take every patient
+    // record this doctor ever saw along with it. Check first and refuse: a
+    // real doctor is taken off the queue by deactivating, which keeps their
+    // history and simply hides them from the patient form.
+    const { count, error: countError } = await supabase
+      .from('queue_entries')
+      .select('public_id', { count: 'exact', head: true })
+      .eq('doctor_id', id)
+
+    if (countError) {
+      logTechnicalError('deleteDoctor — history check', countError)
+      throw toAppError(countError)
+    }
+    if ((count ?? 0) > 0) throw new AppError('DOCTOR_HAS_HISTORY')
+
+    const { error } = await supabase.from('doctors').delete().eq('id', id)
+
+    if (error) {
+      logTechnicalError('deleteDoctor', error)
+      throw toAppError(error)
+    }
+  },
+
   // ---- patient ----------------------------------------------------------
 
   async registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult> {

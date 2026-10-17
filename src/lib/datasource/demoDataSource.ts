@@ -398,6 +398,22 @@ export const demoDataSource: QueueDataSource = {
     return toDoctorOption(updated)
   },
 
+  async deleteDoctor(id: string): Promise<void> {
+    const state = readState()
+    const index = state.doctors.findIndex((d) => d.id === id)
+    if (index === -1) throw new AppError('DOCTOR_NOT_FOUND')
+
+    // Mirrors the Supabase backend and the `on delete cascade` in the schema:
+    // a doctor with any patient history is not deleted, only deactivated.
+    if (state.entries.some((entry) => entry.doctor_id === id)) {
+      throw new AppError('DOCTOR_HAS_HISTORY')
+    }
+
+    state.doctors.splice(index, 1)
+    writeState(state)
+    broadcast(id)
+  },
+
   // ---- patient ----------------------------------------------------------
 
   async registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult> {

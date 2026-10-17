@@ -145,6 +145,11 @@ export interface UiMessages {
     qr: string
     display: string
     edit: string
+    /** Removes a doctor added by mistake. Never applies to one with history. */
+    delete: string
+    /** Names the doctor, so the confirmation cannot be misread. */
+    deleteConfirm: (doctorName: string) => string
+    deleteWarning: string
   }
 
   login: {

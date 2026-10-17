@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Plus, QrCode, UserRound } from 'lucide-react'
+import { ExternalLink, Pencil, Plus, QrCode, Trash2, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -28,6 +28,8 @@ export function DoctorsPage() {
 
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -58,6 +60,26 @@ export function DoctorsPage() {
       setActionError(toUserMessage(caught, messages))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id)
+    setActionError(null)
+    try {
+      await dataSource.deleteDoctor(id)
+      setConfirmingDeleteId(null)
+      if (editingId === id) setEditingId(null)
+      await reload()
+    } catch (caught) {
+      // A doctor with any past patient cannot be deleted — the data source
+      // refuses rather than cascading the queue history away. Close the
+      // confirmation and let the banner explain, so the row is usable again.
+      logTechnicalError('DoctorsPage — deleteDoctor', caught)
+      setActionError(toUserMessage(caught, messages))
+      setConfirmingDeleteId(null)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -127,6 +149,7 @@ export function DoctorsPage() {
                         onCancel={() => setEditingId(null)}
                       />
                     ) : (
+                      <>
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-start gap-3">
                           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-800">
@@ -184,12 +207,54 @@ export function DoctorsPage() {
                             onClick={() => {
                               setEditingId(doctor.id)
                               setAdding(false)
+                              setConfirmingDeleteId(null)
                             }}
                           >
                             {t.edit}
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            icon={<Trash2 className="size-4" aria-hidden="true" />}
+                            onClick={() => {
+                              setConfirmingDeleteId(doctor.id)
+                              setAdding(false)
+                              setEditingId(null)
+                              setActionError(null)
+                            }}
+                          >
+                            {t.delete}
+                          </Button>
                         </div>
                       </div>
+
+                      {confirmingDeleteId === doctor.id ? (
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                          <p className="text-sm font-bold text-red-900">
+                            {t.deleteConfirm(doctor.name)}
+                          </p>
+                          <p className="mt-1 text-sm text-red-800">{t.deleteWarning}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              loading={deletingId === doctor.id}
+                              onClick={() => void handleDelete(doctor.id)}
+                            >
+                              {t.delete}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={deletingId === doctor.id}
+                              onClick={() => setConfirmingDeleteId(null)}
+                            >
+                              {messages.ui.common.cancel}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                      </>
                     )}
                   </li>
                 )

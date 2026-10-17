@@ -88,6 +88,15 @@ export interface QueueDataSource {
   listDoctors(options?: { includeInactive?: boolean }): Promise<DoctorOption[]>
   createDoctor(input: DoctorInput): Promise<DoctorOption>
   updateDoctor(id: string, input: Partial<DoctorInput>): Promise<DoctorOption>
+  /**
+   * Removes a doctor outright, for one added by mistake.
+   *
+   * Refuses with `DOCTOR_HAS_HISTORY` if the doctor has ever had a patient:
+   * `queue_entries` and `queue_events` both cascade from `doctors`, so a bare
+   * delete would silently destroy those patients' records. Deactivation is the
+   * correct way to take a real doctor off the queue.
+   */
+  deleteDoctor(id: string): Promise<void>
 
   // ---- patient (no authentication) --------------------------------------
   registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult>
