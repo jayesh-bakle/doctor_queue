@@ -1,0 +1,22 @@
+{
+  // Cloudflare Workers static-asset deployment for this Vite SPA.
+  //
+  // Committing this file is what makes the build deterministic: without it,
+  // `wrangler deploy` runs an interactive auto-setup on every build, which
+  // rewrites package.json, installs @cloudflare/vite-plugin, and generates a
+  // config of its own. This project is a plain static site — no Worker script,
+  // no server code — so an assets-only config is all it needs.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "doctor-queue",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./dist",
+    // React Router owns every path: /register, /token/<id>, /display/<id>,
+    // /staff/*. None of those exist as files, so anything that would 404 is
+    // served index.html with a 200 instead — the SPA equivalent of Vercel's
+    // `rewrites`. Do NOT also add a `/* -> /index.html` rule to _redirects:
+    // Cloudflare rejects it as an infinite loop, because /index.html matches
+    // its own rule.
+    "not_found_handling": "single-page-application"
+  }
+}

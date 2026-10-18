@@ -441,12 +441,15 @@ is the cheaper host for a clinic that is paying you. The build is identical — 
 6. Add a custom domain under **Custom domains**, and update Supabase **Authentication → URL
    Configuration** to that domain.
 
-`public/_redirects` and `public/_headers` are copied into `dist/` by Vite and replace the two jobs
-`vercel.json` did:
+`public/_headers` is copied into `dist/` by Vite and sets the same security headers and the
+immutable cache policy for `/assets/*` that `vercel.json` set on Vercel.
 
-- `_redirects` rewrites every unknown path to `/index.html` with a `200`, so React Router handles
-  deep links and TV display URLs. Static assets are served first and are unaffected.
-- `_headers` sets the same security headers and the immutable cache policy for `/assets/*`.
+The SPA fallback works differently. There is deliberately **no `_redirects` file**: Cloudflare
+rejects `/* → /index.html` as an infinite loop when the assets runtime normalises `.html` paths.
+Instead [wrangler.jsonc](wrangler.jsonc) sets `not_found_handling: "single-page-application"`, so any
+request that matches no file is answered with `index.html` and a `200`. Committing that file also
+stops `wrangler deploy` from running its interactive auto-setup — which otherwise edits
+`package.json`, installs `@cloudflare/vite-plugin`, and generates its own config on every build.
 
 Both hosts can run at once — `vercel.json` is harmless on Cloudflare and nothing in the app reads
 it — so deploy to Cloudflare, verify it against the same Supabase project, and only then move the
