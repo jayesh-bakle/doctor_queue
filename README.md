@@ -121,18 +121,24 @@ Doctor-queue-system/
 ├── package.json
 ├── vite.config.ts                 React + Tailwind plugins, Vitest config
 ├── vercel.json                    SPA rewrite + security headers
+├── wrangler.jsonc                 Cloudflare Pages config (assets + SPA fallback)
 ├── .env.example                   Copy to .env — see section 8
 ├── .gitignore                     Includes .env
 │
 ├── public/
-│   └── assets/favicon.svg
+│   ├── assets/favicon.svg
+│   └── _headers                   Caching and security headers on Cloudflare Pages
 │
 ├── supabase/
 │   ├── migrations/
 │   │   ├── 001_initial_schema.sql Tables, enums, indexes, the unique token constraint
 │   │   ├── 002_rls.sql            Row level security, the queue snapshot function
 │   │   ├── 003_queue_functions.sql RPCs, the advisory lock, the queue_events trigger
-│   │   └── 004_fix_doctor_delete.sql Guards the trigger during a doctor cascade delete
+│   │   ├── 004_fix_doctor_delete.sql Guards the trigger during a doctor cascade delete
+│   │   └── 005_sheet_export.sql   `exported_at` marker for the Google Sheets export
+│   ├── functions/
+│   │   └── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
+│   ├── config.toml                Supabase CLI config for the function
 │   └── seed.sql                   Sample hospital and two doctors
 │
 ├── src/
@@ -183,6 +189,7 @@ Doctor-queue-system/
     ├── validation.test.ts         Registration rules
     ├── errors.test.ts             Marathi messages, no leaked database errors
     ├── demoQueue.test.ts          End-to-end against the demo backend
+    ├── sheetRows.test.ts          Google Sheets row formatting and timezone conversion
     ├── helpers/browserEnv.ts      Browser globals for the demo tests
     └── sql/queue.test.ts          Real concurrency against Postgres (skips without a DB URL)
 ```
@@ -251,7 +258,7 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Four migration files, run **in order**. Together they are idempotent, so re-running them is safe
+Five migration files, run **in order**. Together they are idempotent, so re-running them is safe
 and nothing is ever dropped.
 
 | File | What it creates |
@@ -260,6 +267,7 @@ and nothing is ever dropped.
 | `002_rls.sql` | Row level security on every table, the helper functions that avoid policy recursion, and the realtime publication |
 | `003_queue_functions.sql` | `register_patient()`, `get_token_status()`, `get_public_queue()`, `call_next_patient()`, the status transitions, the `queue_events` trigger, and the execution grants |
 | `004_fix_doctor_delete.sql` | Guards the `queue_events` trigger so deleting a doctor who has queue history no longer fails with a foreign-key error during the cascade |
+| `005_sheet_export.sql` | Adds `queue_entries.exported_at` and its partial index, which the Google Sheets export uses to copy each finished row exactly once (section 14) |
 
 ### Running them
 
@@ -267,7 +275,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, then `004_fix_doctor_delete.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, then `005_sheet_export.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 **Option B — the Supabase CLI**
@@ -355,7 +363,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. The four migrations and `seed.sql` must already have been run.
+`npm run dev`. The five migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -559,7 +567,121 @@ goes with it, and every request they had in flight stops working.
 
 ---
 
-## 14. Troubleshooting
+## 14. Daily Google Sheets export
+
+Every day's registrations are copied into a Google Sheet the clinic owns. The copy is made by a
+Supabase Edge Function, so it runs on the server whether or not anyone has the app open, and the
+credentials never reach the browser.
+
+Two schedules run:
+
+- **every 5 minutes** — appends patients who have just reached `COMPLETED` or `SKIPPED`, so the Sheet
+  fills up during the day.
+- **23:55 IST nightly** — rewrites the last 7 days from the database. This repairs any run that
+  failed, removes duplicates, and includes patients who never reached a terminal status that day.
+
+The seven-day window is deliberate: a missed nightly run is fixed by the next one.
+
+### What the Sheet contains
+
+One tab (default `Queue`), with this header written automatically on the first run:
+
+| Date | Token | Doctor | Department | Room | Patient | Mobile | Type | Status | Registered | Called | Completed |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+
+Dates and times are in the hospital's timezone. Rows are ordered by date, then the doctor's configured
+order, then token. To get Excel, use **File → Download → Microsoft Excel (.xlsx)** in the Sheet.
+
+> This tab is generated. Do not hand-edit it — the nightly rewrite deletes the rows for the last seven
+> dates and writes them again. Put calculations or notes on a second tab instead.
+
+### Setup
+
+**1. Run the migration.** `supabase/migrations/005_sheet_export.sql` adds the `exported_at` marker the
+function uses to avoid duplicates. Run it in the SQL editor like the others.
+
+**2. Create the Sheet.** Make a Google Sheet and rename its first tab to `Queue` (or choose another
+name and set `GOOGLE_SHEET_TAB` below). The Sheet ID is the long string in its URL:
+`https://docs.google.com/spreadsheets/d/`**`<THIS PART>`**`/edit`.
+
+**3. Create a Google service account.**
+
+1. Go to <https://console.cloud.google.com/> and create a project (or reuse one).
+2. **APIs & Services → Library →** search **Google Sheets API → Enable**.
+3. **APIs & Services → Credentials → Create credentials → Service account.** Give it any name
+   (for example `queue-export`); no roles are needed.
+4. Open the service account → **Keys → Add key → Create new key → JSON**. A file downloads.
+5. From that JSON, copy **`client_email`** and **`private_key`**.
+
+**4. Share the Sheet with the service account.** Open the Sheet → **Share** → paste the
+`client_email` (it looks like `queue-export@your-project.iam.gserviceaccount.com`) → set it to
+**Editor**. Without this, every write fails with `403`.
+
+**5. Deploy the function.** From the project root:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npx supabase functions deploy daily-sheet-export
+```
+
+`verify_jwt = false` for this function is already set in `supabase/config.toml`; the function
+authenticates each call with `x-export-secret` instead, because cron has no user login.
+
+**6. Set the secrets.** Replace each value with your own. `EXPORT_SECRET` is a random password you
+invent — `openssl rand -hex 32` prints one.
+
+```bash
+npx supabase secrets set \
+  GOOGLE_SERVICE_ACCOUNT_EMAIL="queue-export@your-project.iam.gserviceaccount.com" \
+  GOOGLE_PRIVATE_KEY="$(jq -r .private_key service-account.json)" \
+  GOOGLE_SHEET_ID="<spreadsheet-id>" \
+  GOOGLE_SHEET_TAB="Queue" \
+  EXPORT_SECRET="<random-secret>" \
+  HOSPITAL_ID="11111111-1111-1111-1111-111111111111"
+```
+
+`GOOGLE_PRIVATE_KEY` may also be pasted with literal `\n` sequences — the function converts them back
+to newlines. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically; do not set them.
+
+**7. Schedule it.** Supabase Dashboard → **Project → Cron → Create job**. Create two jobs, both
+`POST` to `https://<your-project-ref>.supabase.co/functions/v1/daily-sheet-export` with the header
+`x-export-secret: <the secret from step 6>` and `content-type: application/json`:
+
+| Name | Cron expression (UTC) | Body |
+|---|---|---|
+| `sheet-export-incremental` | `*/5 * * * *` | `{"mode":"incremental"}` |
+| `sheet-export-nightly` | `25 18 * * *` | `{"mode":"daily","days":7}` |
+
+`25 18 * * *` is 23:55 IST. Cron expressions in Supabase run in UTC; if the hospital timezone in
+Settings changes, adjust this by the offset.
+
+**8. Test it.**
+
+```bash
+curl -sS -X POST "https://<your-project-ref>.supabase.co/functions/v1/daily-sheet-export" \
+  -H "x-export-secret: <the secret>" \
+  -H "content-type: application/json" \
+  -d '{"mode":"daily","days":7}'
+```
+
+A successful run returns `{"ok":true,"mode":"daily","appended":N,"deleted":M}` and the Sheet fills in.
+A `401` means the secret header does not match. A `500` means a secret is missing or Google refused —
+the function log (Dashboard → Edge Functions → `daily-sheet-export` → Logs) names which, without
+printing patient data.
+
+### Notes
+
+- The function queries Supabase with the service-role key, which bypasses RLS. That key exists only as
+  a Supabase secret; it is never sent to a browser.
+- If the Google call fails, `exported_at` is left null and the next five-minute run retries the same
+  rows. The nightly rewrite is the final safety net.
+- The Sheet holds names and mobile numbers. Share it only with clinic staff and the service account.
+- On Supabase Free the project pauses after 7 days of inactivity, which stops the export too.
+
+---
+
+## 15. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -574,14 +696,14 @@ goes with it, and every request they had in flight stops working.
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all four migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all five migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.
 
 ---
 
-## 15. Security considerations
+## 16. Security considerations
 
 **The data model is the first line of defence.** The schema cannot store a diagnosis, a
 prescription or a test result, because there is no column for one. That is a deliberate limit: aa

@@ -8,6 +8,7 @@ import {
   estimateWaitMinutes,
   findNextWaitingToken,
   sortByToken,
+  sortByTokenDesc,
 } from '../src/lib/queue'
 import type { QueueStatus } from '../src/types/database'
 
@@ -136,6 +137,19 @@ describe('sortByToken', () => {
   it('does not mutate the array it was given', () => {
     const input = [row(3, 'WAITING'), row(1, 'WAITING')]
     sortByToken(input)
+    expect(input.map((r) => r.tokenNumber)).toEqual([3, 1])
+  })
+})
+
+describe('sortByTokenDesc', () => {
+  it('puts the newest registration first', () => {
+    const sorted = sortByTokenDesc([row(9, 'WAITING'), row(2, 'WAITING'), row(5, 'WAITING')])
+    expect(sorted.map((r) => r.tokenNumber)).toEqual([9, 5, 2])
+  })
+
+  it('does not mutate the array it was given', () => {
+    const input = [row(3, 'WAITING'), row(1, 'WAITING')]
+    sortByTokenDesc(input)
     expect(input.map((r) => r.tokenNumber)).toEqual([3, 1])
   })
 })

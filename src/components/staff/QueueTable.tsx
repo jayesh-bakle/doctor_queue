@@ -1,7 +1,8 @@
 import { BellRing, Check, ChevronDown, ChevronUp, Play, SkipForward } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import { useLanguage } from '../../hooks/useLanguage'
+import { sortByTokenDesc } from '../../lib/queue'
 import { cn } from '../../lib/utils'
 import { formatMobileForDisplay } from '../../lib/validation'
 import type { QueueEntryView } from '../../types/queue'
@@ -49,6 +50,11 @@ export function QueueTable({
   const { messages } = useLanguage()
   const t = messages.ui.queueTable
 
+  // Newest registration at the top: a patient who just registered is the one
+  // reception most often needs to see. The queue's logic reads tokens, not row
+  // order, so this reversal changes the view and nothing else.
+  const rows = useMemo(() => sortByTokenDesc(entries), [entries])
+
   const toggle = (publicId: string): void => {
     setExpanded((current) => (current === publicId ? null : publicId))
   }
@@ -68,7 +74,7 @@ export function QueueTable({
         </thead>
 
         <tbody>
-          {entries.map((entry) => {
+          {rows.map((entry) => {
             const isBusy = busyPublicId === entry.publicId
             const isNext = entry.status === 'WAITING' && entry.tokenNumber === nextWaitingToken
             const isExpanded = expanded === entry.publicId

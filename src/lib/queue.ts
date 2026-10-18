@@ -98,6 +98,17 @@ export function sortByToken<T extends MinimalEntry>(entries: ReadonlyArray<T>): 
 }
 
 /**
+ * Newest registration first, for the reception table.
+ *
+ * Display order only. The queue's rules never read array order — `deriveSnapshot`
+ * and `findNextWaitingToken` take a minimum, and `countPatientsAhead` compares
+ * tokens — so reversing the table cannot change which patient is called next.
+ */
+export function sortByTokenDesc<T extends MinimalEntry>(entries: ReadonlyArray<T>): T[] {
+  return [...entries].sort((a, b) => b.tokenNumber - a.tokenNumber)
+}
+
+/**
  * Patients who still need to be seen today — waiting plus the one currently
  * being called. This is the number reception cares about at a glance.
  */

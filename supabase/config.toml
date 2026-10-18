@@ -1,0 +1,11 @@
+# Minimal Supabase CLI configuration.
+#
+# `supabase link` and `supabase functions deploy` read this file. The project
+# ref itself is not stored here — `supabase link --project-ref <ref>` writes that
+# to `supabase/.temp/`, which is gitignored.
+project_id = "doctor-queue-system"
+
+[functions.daily-sheet-export]
+# Cron carries no Supabase user JWT, so JWT verification is disabled and the
+# function authenticates each call with `x-export-secret` instead.
+verify_jwt = false
