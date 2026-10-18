@@ -423,6 +423,40 @@ them.
 Re-check that the patient-facing screens still work. The queue is a live system, and a broken
 deploy at 10am on a Monday is a queue of people standing at a counter with nothing to look at.
 
+### Deploying to Cloudflare Pages instead
+
+Cloudflare Pages' free tier allows commercial use and metres neither requests nor bandwidth, so it
+is the cheaper host for a clinic that is paying you. The build is identical — only the host changes.
+
+1. Push the repository to GitHub.
+2. In Cloudflare: **Workers & Pages → Create → Pages → Connect to Git**, and pick the repository.
+3. Set:
+   - **Framework preset:** Vite
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+4. Under **Settings → Environment variables**, add the same three variables as Vercel:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DEMO_MODE=false`. Add them for both
+   Production and Preview. Do not add `SUPABASE_DB_URL`.
+5. **Save and Deploy.**
+6. Add a custom domain under **Custom domains**, and update Supabase **Authentication → URL
+   Configuration** to that domain.
+
+`public/_redirects` and `public/_headers` are copied into `dist/` by Vite and replace the two jobs
+`vercel.json` did:
+
+- `_redirects` rewrites every unknown path to `/index.html` with a `200`, so React Router handles
+  deep links and TV display URLs. Static assets are served first and are unaffected.
+- `_headers` sets the same security headers and the immutable cache policy for `/assets/*`.
+
+Both hosts can run at once — `vercel.json` is harmless on Cloudflare and nothing in the app reads
+it — so deploy to Cloudflare, verify it against the same Supabase project, and only then move the
+domain. The database is untouched by any of this: it lives in Supabase and only the files move.
+
+> **Printed QR codes are tied to the origin.** The poster's QR code encodes whatever domain the app
+> is on when you open `/qr`. Changing host without a custom domain changes the origin, so any
+> poster already printed against `*.vercel.app` would send patients to the old deployment. Set the
+> custom domain **before** printing, or reprint the posters after the move.
+
 ---
 
 ## 11. Creating the QR code

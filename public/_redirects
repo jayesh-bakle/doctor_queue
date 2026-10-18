@@ -1,0 +1,11 @@
+# Cloudflare Pages SPA fallback.
+#
+# The app is a single-page React app: `/register`, `/display/<id>`, `/staff/...`
+# are client-side routes with no file behind them. Cloudflare serves a matching
+# static file first, so real assets are unaffected; anything else is rewritten
+# to index.html and React Router takes over.
+#
+# `200` means rewrite — the browser keeps the URL the patient typed or scanned.
+# A `301`/`302` here would change the address bar to `/index.html`, which would
+# break deep links and the QR codes.
+/*    /index.html   200
