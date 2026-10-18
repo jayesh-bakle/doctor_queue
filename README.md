@@ -584,7 +584,7 @@ the system afterwards. The queue matters more than the software.
 ## 15. Security considerations
 
 **The data model is the first line of defence.** The schema cannot store a diagnosis, a
-prescription or a test result, because there is no column for one. That is a deliberate limit: a
+prescription or a test result, because there is no column for one. That is a deliberate limit: aa
 system that *cannot* hold clinical information cannot leak it.
 
 **Row level security is on every table**, and patients' browsers have no direct access to
