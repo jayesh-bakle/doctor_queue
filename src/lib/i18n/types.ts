@@ -77,10 +77,10 @@ export interface UiMessages {
   }
 
   home: {
-    register: string
-    registerHint: string
     staffLogin: string
     staffLoginHint: string
+    /** Tells a patient who reached the bare site address what to do instead. */
+    patientHint: string
   }
 
   register: {

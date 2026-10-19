@@ -279,10 +279,9 @@ export const en: Messages = {
     },
 
     home: {
-      register: 'Join the queue',
-      registerHint: 'Get a token and watch the queue',
       staffLogin: 'Reception login',
       staffLoginHint: 'For calling patients in',
+      patientHint: 'Patients: scan the QR code at reception.',
     },
 
     register: {

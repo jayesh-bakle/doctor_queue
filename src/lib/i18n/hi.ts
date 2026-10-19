@@ -237,10 +237,9 @@ export const hi: Messages = {
     },
 
     home: {
-      register: 'कतार में पंजीकरण करें',
-      registerHint: 'टोकन पाएँ और कतार देखें',
       staffLogin: 'रिसेप्शन लॉगिन',
       staffLoginHint: 'मरीज़ों को बुलाने के लिए',
+      patientHint: 'मरीज़ों के लिए: रिसेप्शन पर लगा QR कोड स्कैन करें।',
     },
 
     register: {

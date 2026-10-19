@@ -280,6 +280,11 @@ and nothing is ever dropped.
 3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, then `006_multi_hospital_support.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
+To wipe an existing database and rebuild it with **one login per hospital**, follow
+[`supabase/RESET_AND_SETUP.md`](supabase/RESET_AND_SETUP.md) instead. That runbook covers the
+reset, the migration order, creating hospitals and doctors, and linking manually created Auth
+users to their clinic.
+
 **Option B — the Supabase CLI**
 
 ```bash
@@ -369,9 +374,11 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=fals
 
 ### Walking through it
 
-1. Open <http://localhost:5173>. The home page offers registration and the QR poster.
-2. Go to `/register`, fill in a name, pick a doctor, and submit. You land on your own token page
-   showing `००१`.
+1. Open <http://localhost:5173>. The home page offers reception login only — patients arrive through
+   their clinic's QR link instead.
+2. Open `/h/11111111-1111-1111-1111-111111111111` (the seeded clinic's registration page; `/register`
+   also works while exactly one hospital exists), fill in a name, pick a doctor, and submit. You land
+   on your own token page showing `००१`.
 3. Register again — `००२`. Change the doctor and register — that doctor's queue also starts at
    `००१`.
 4. Open `/display/<doctorId>` in a **second window** (the QR page lists the URLs). Sign in to
@@ -488,7 +495,7 @@ Testing it before you print: scan the poster with an actual phone camera, not a 
 check that it opens the registration page on the deployed URL — not `localhost`.
 
 The poster carries a fallback line — "मोबाईल नसल्यास रिसेप्शनवर नोंदणी करा" — because not every
-patient arriving at the clinic has a smartphone. Reception can open `/register` on the counter
+patient arriving at the clinic has a smartphone. Reception can open `/h/<hospital-id>` on the counter
 computer and register them there; the queue is identical either way.
 
 ---
@@ -803,7 +810,7 @@ values
 
 -- 3. After creating the login in Authentication → Users, link it to the clinic.
 insert into staff_users (id, hospital_id, full_name, role)
-values ('<auth-user-id>', '<hospital-id>', 'रिसेप्शन', 'reception');
+values ('<auth-user-id>', '<hospital-id>', 'रिसेप्शन', 'RECEPTION');
 ```
 
 Then sign in as that receptionist and open **QR कोड**: the poster is already encoded with the new

@@ -214,10 +214,9 @@ export const mr: Messages = {
     },
 
     home: {
-      register: 'रांगेत नोंदणी करा',
-      registerHint: 'टोकन मिळवा आणि रांग पाहा',
       staffLogin: 'रिसेप्शन लॉगिन',
       staffLoginHint: 'रुग्णांना बोलावण्यासाठी',
+      patientHint: 'रुग्णांसाठी: रिसेप्शनवर असलेला QR कोड स्कॅन करा.',
     },
 
     register: {
