@@ -3,7 +3,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { dataSource } from '../lib/datasource'
 import { logTechnicalError, toUserErrorCode, type AppErrorCode } from '../lib/errors'
 import type { DoctorOption } from '../types/queue'
+import { useHospitalId } from './useHospitalId'
 import { useLanguage } from './useLanguage'
+
+export interface UseDoctorsOptions {
+  /** Staff screens need inactive doctors too; the patient form must not. */
+  includeInactive?: boolean
+  /** Overrides the resolved hospital — normally only `/h/:hospitalId` does. */
+  hospitalId?: string
+}
 
 export interface UseDoctorsResult {
   doctors: DoctorOption[]
@@ -13,8 +21,12 @@ export interface UseDoctorsResult {
 }
 
 /**
- * The list of doctors, used by the registration form, the dashboard selector
- * and doctor management.
+ * The doctors of one hospital, used by the registration form, the dashboard
+ * selector and doctor management.
+ *
+ * The hospital is resolved by `useHospitalId` — the route's `hospitalId`, the
+ * signed-in staff member's clinic, or an explicit override — so no screen can
+ * accidentally offer another clinic's doctors.
  *
  * On the patient-facing side the RLS policy returns active doctors only, which
  * is exactly the set the registration form should offer (spec §16).
@@ -23,7 +35,9 @@ export interface UseDoctorsResult {
  * language re-renders the message in the new one instead of leaving a stale
  * sentence behind.
  */
-export function useDoctors(includeInactive = false): UseDoctorsResult {
+export function useDoctors(options: UseDoctorsOptions = {}): UseDoctorsResult {
+  const { includeInactive = false } = options
+  const hospitalId = useHospitalId(options.hospitalId)
   const { messages } = useLanguage()
   const [doctors, setDoctors] = useState<DoctorOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,7 +45,7 @@ export function useDoctors(includeInactive = false): UseDoctorsResult {
 
   const reload = useCallback(async () => {
     try {
-      const result = await dataSource.listDoctors({ includeInactive })
+      const result = await dataSource.listDoctors({ includeInactive, hospitalId })
       setDoctors(result)
       setErrorCode(null)
     } catch (caught) {
@@ -40,7 +54,7 @@ export function useDoctors(includeInactive = false): UseDoctorsResult {
     } finally {
       setLoading(false)
     }
-  }, [includeInactive])
+  }, [includeInactive, hospitalId])
 
   useEffect(() => {
     void reload()

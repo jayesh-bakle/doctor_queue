@@ -61,7 +61,8 @@ export const DEMO_CREDENTIALS = {
   password: 'demo1234',
 } as const
 
-const DEMO_HOSPITAL_ID = '11111111-1111-1111-1111-111111111111'
+/** Fixed ids so demo QR codes, TV links and printed posters survive a reset. */
+export const DEMO_HOSPITAL_ID = '11111111-1111-1111-1111-111111111111'
 const DEMO_DOCTOR_GP = '22222222-2222-2222-2222-222222222222'
 const DEMO_DOCTOR_ENT = '33333333-3333-3333-3333-333333333333'
 
@@ -267,6 +268,7 @@ function publicQueueFor(state: DemoState, doctorId: string): PublicQueueResult |
     hospital_name: state.hospital.name,
     hospital_address: state.hospital.address,
     hospital_phone: state.hospital.phone,
+    hospital_timezone: state.hospital.timezone,
     display_message: state.hospital.display_message,
     announcement_enabled: state.hospital.announcement_enabled,
     avg_consultation_minutes: state.hospital.avg_consultation_minutes,
@@ -305,6 +307,7 @@ function tokenStatusFor(state: DemoState, publicId: string): TokenStatusResult |
     room_number: doctor.room_number,
     hospital_name: state.hospital.name,
     hospital_phone: state.hospital.phone,
+    hospital_timezone: state.hospital.timezone,
     current_token: snapshot.currentToken,
     next_token: snapshot.nextToken,
     waiting_count: snapshot.waitingCount,
@@ -350,6 +353,7 @@ export const demoDataSource: QueueDataSource = {
   async listDoctors(options): Promise<DoctorOption[]> {
     const state = readState()
     return state.doctors
+      .filter((d) => (options?.hospitalId ? d.hospital_id === options.hospitalId : true))
       .filter((d) => (options?.includeInactive ? true : d.is_active))
       .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name, 'mr'))
       .map(toDoctorOption)
@@ -617,8 +621,13 @@ export const demoDataSource: QueueDataSource = {
 
   // ---- hospital ---------------------------------------------------------
 
-  async getHospital(): Promise<HospitalRow | null> {
-    return readState().hospital
+  async getHospital(hospitalId?: string): Promise<HospitalRow | null> {
+    const hospital = readState().hospital
+    // The demo holds one hospital. An explicit id must match it — that is what
+    // makes /h/<wrong-id> show the "scan the QR again" message in demo mode
+    // exactly as it does against Supabase.
+    if (hospitalId && hospitalId !== hospital.id) return null
+    return hospital
   },
 
   async updateHospital(input: HospitalSettingsInput): Promise<void> {

@@ -89,6 +89,13 @@ export interface UiMessages {
     loadingDoctors: string
     emptyTitle: string
     emptyDescription: string
+    /** Shown when the URL does not name a hospital that exists. */
+    hospitalMissingTitle: string
+    hospitalMissingDescription: string
+    /** Heading above the per-doctor live token summary. */
+    queueSummaryTitle: string
+    nowServing: string
+    waitingLabel: string
   }
 
   token: {
@@ -161,6 +168,11 @@ export interface UiMessages {
     submit: string
     backHome: string
     demoMode: string
+    /** Shown when a `/staff/login/:hospitalId` link names no known hospital. */
+    hospitalMissingTitle: string
+    hospitalMissingDescription: string
+    /** The account signed in, but belongs to a different clinic than the URL. */
+    wrongHospital: string
   }
 
   notFound: {
@@ -190,6 +202,11 @@ export interface UiMessages {
     displayLinksDescription: string
     noDoctorsTitle: string
     noDoctorsDescription: string
+    /** The clinic-specific staff sign-in address, per-hospital. */
+    staffLinkTitle: string
+    staffLinkDescription: string
+    copyLink: string
+    copied: string
   }
 
   display: {

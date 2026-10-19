@@ -151,6 +151,11 @@ $$;
 -- 2. Patient-facing reads (no login required, keyed by the unguessable
 --    public_id, and returning only the caller's own record)
 -- =============================================================================
+-- Dropped first because a later migration (006) adds a column to this result
+-- set, and `create or replace` cannot change an OUT column list. Re-running
+-- 003 must therefore replace the function outright, not fail against it.
+drop function if exists get_token_status(uuid);
+
 create or replace function get_token_status(p_public_id uuid)
 returns table (
   public_id                 uuid,
@@ -220,6 +225,9 @@ $$;
 
 -- The public TV payload. Contains no patient name, no mobile, no age and no
 -- clinical detail — by construction, since it selects no such columns.
+-- Dropped for the same reason as get_token_status above: 006 widens the result.
+drop function if exists get_public_queue(uuid);
+
 create or replace function get_public_queue(p_doctor_id uuid)
 returns table (
   doctor_id                uuid,

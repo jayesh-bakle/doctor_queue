@@ -44,10 +44,24 @@ export function App() {
             <Routes>
               {/* --- Patient (no login) ------------------------------------- */}
               <Route path="/" element={<HomePage />} />
+              {/*
+                The QR poster for each clinic points here, so the hospital is
+                part of the URL rather than something the app has to guess.
+                `/register` stays as an alias for posters printed before the
+                change; it falls back to the only hospital while one exists.
+              */}
+              <Route path="/h/:hospitalId" element={<RegisterPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/token/:publicId" element={<TokenStatusPage />} />
 
               {/* --- Staff (authenticated) ---------------------------------- */}
+              {/*
+                The hospital-specific login link shared with each clinic's
+                receptionist. The clinic is resolved from the path before
+                authentication, so the sign-in screen can show its name.
+                `/staff/login` stays for generic links and old bookmarks.
+              */}
+              <Route path="/staff/login/:hospitalId" element={<StaffLoginPage />} />
               <Route path="/staff/login" element={<StaffLoginPage />} />
               <Route path="/staff/dashboard" element={<StaffDashboardPage />} />
               <Route path="/staff/doctors" element={<DoctorsPage />} />

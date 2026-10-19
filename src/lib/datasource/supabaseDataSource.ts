@@ -90,6 +90,13 @@ export const supabaseDataSource: QueueDataSource = {
     const supabase = getSupabase()
     let query = supabase.from('doctors').select('*')
 
+    // One deployment serves several clinics, so the hospital filter is what
+    // keeps the registration form and the dashboard from listing another
+    // clinic's doctors. RLS is the second line of defence for staff.
+    if (options?.hospitalId) {
+      query = query.eq('hospital_id', options.hospitalId)
+    }
+
     // Note: the anon role's RLS policy only exposes active doctors, so
     // includeInactive is meaningful for staff only.
     if (!options?.includeInactive) {
@@ -301,25 +308,59 @@ export const supabaseDataSource: QueueDataSource = {
 
   // ---- hospital ---------------------------------------------------------
 
-  async getHospital(): Promise<HospitalRow | null> {
+  async getHospital(hospitalId?: string): Promise<HospitalRow | null> {
     const supabase = getSupabase()
 
-    // Single-hospital deployment, so "the hospital" is unambiguous. A
-    // multi-branch installation would scope this by the staff member's
-    // hospital_id or by the doctor being viewed.
+    // 1. An explicit id — a patient on /h/:hospitalId. The anon policy allows
+    //    reading a hospital's public details.
+    if (hospitalId) {
+      const { data, error } = await supabase
+        .from('hospitals')
+        .select('*')
+        .eq('id', hospitalId)
+        .maybeSingle<HospitalRow>()
+
+      if (error) {
+        logTechnicalError('getHospital', error)
+        return null
+      }
+      return data ?? null
+    }
+
+    // 2. A signed-in staff member: their own hospital, always.
+    const staff = await fetchStaffSession()
+    if (staff) {
+      const { data, error } = await supabase
+        .from('hospitals')
+        .select('*')
+        .eq('id', staff.hospitalId)
+        .maybeSingle<HospitalRow>()
+
+      if (error) {
+        logTechnicalError('getHospital — staff', error)
+        return null
+      }
+      return data ?? null
+    }
+
+    // 3. Nobody signed in and no id — the single-hospital installation, which
+    //    is how every deployment started. Read TWO rows: with one hospital
+    //    there is nothing to guess, but two or more means the caller has not
+    //    told us which clinic it is, and returning the first would show a
+    //    patient the wrong clinic's name.
     const { data, error } = await supabase
       .from('hospitals')
       .select('*')
       .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle<HospitalRow>()
+      .limit(2)
 
     if (error) {
       logTechnicalError('getHospital', error)
       return null
     }
 
-    return data ?? null
+    const rows = (data ?? []) as HospitalRow[]
+    return rows.length === 1 ? (rows[0] ?? null) : null
   },
 
   async updateHospital(input: HospitalSettingsInput): Promise<void> {

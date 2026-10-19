@@ -226,6 +226,12 @@ export const mr: Messages = {
       loadingDoctors: 'माहिती लोड होत आहे…',
       emptyTitle: 'सध्या रांग उपलब्ध नाही.',
       emptyDescription: 'कृपया रिसेप्शनशी संपर्क साधा.',
+      hospitalMissingTitle: 'हे रुग्णालय सापडले नाही.',
+      hospitalMissingDescription:
+        'कृपया रिसेप्शनवर असलेला QR कोड पुन्हा स्कॅन करा किंवा रिसेप्शनशी संपर्क साधा.',
+      queueSummaryTitle: 'आत्ताची रांग',
+      nowServing: 'सध्या चालू',
+      waitingLabel: 'प्रतीक्षेत',
     },
 
     token: {
@@ -294,6 +300,11 @@ export const mr: Messages = {
       submit: 'लॉगिन करा',
       backHome: 'मुख्य पानावर परत जा',
       demoMode: 'डेमो मोड:',
+      hospitalMissingTitle: 'हे रुग्णालय सापडले नाही.',
+      hospitalMissingDescription:
+        'लॉगिनची लिंक चुकीची आहे. कृपया या रुग्णालयाची योग्य लिंक वापरा किंवा व्यवस्थापकाशी संपर्क साधा.',
+      wrongHospital:
+        'हे खाते या रुग्णालयाशी जोडलेले नाही. कृपया या रुग्णालयाच्या कर्मचाऱ्याच्या खात्याने लॉगिन करा.',
     },
 
     notFound: {
@@ -327,6 +338,11 @@ export const mr: Messages = {
       displayLinksDescription: 'ही लिंक टीव्ही, मॉनिटर किंवा टॅबलेटवर उघडा. रुग्णांची नावे येथे दिसत नाहीत.',
       noDoctorsTitle: 'अजून डॉक्टर जोडलेले नाहीत.',
       noDoctorsDescription: 'डिस्प्ले लिंक मिळवण्यासाठी आधी डॉक्टर जोडा.',
+      staffLinkTitle: 'रिसेप्शन लॉगिन लिंक',
+      staffLinkDescription:
+        'ही लिंक या रुग्णालयाच्या रिसेप्शनसाठी जतन करा. या लिंकवरून लॉगिन केल्यावर याच रुग्णालयाचे नाव दिसते.',
+      copyLink: 'कॉपी करा',
+      copied: 'कॉपी झाली',
     },
 
     display: {

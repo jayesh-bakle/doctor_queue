@@ -135,7 +135,8 @@ Doctor-queue-system/
 │   │   ├── 002_rls.sql            Row level security, the queue snapshot function
 │   │   ├── 003_queue_functions.sql RPCs, the advisory lock, the queue_events trigger
 │   │   ├── 004_fix_doctor_delete.sql Guards the trigger during a doctor cascade delete
-│   │   └── 005_sheet_export.sql   `exported_at` marker for the Google Sheets export
+│   │   ├── 005_sheet_export.sql   `exported_at` marker for the Google Sheets export
+│   │   └── 006_multi_hospital_support.sql Hospital-scoped staff reads, timezone in the public RPCs
 │   ├── functions/
 │   │   └── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
 │   ├── config.toml                Supabase CLI config for the function
@@ -167,7 +168,7 @@ Doctor-queue-system/
 │   │
 │   ├── hooks/                     useQueue, useRealtimeQueue, useTokenStatus,
 │   │                              usePublicQueue, useDoctors, useHospital,
-│   │                              useStaffAuth, useOnlineStatus
+│   │                              useHospitalId, useStaffAuth, useOnlineStatus
 │   │
 │   ├── layouts/                   PatientLayout, StaffLayout, DisplayLayout
 │   │
@@ -258,7 +259,7 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Five migration files, run **in order**. Together they are idempotent, so re-running them is safe
+Six migration files, run **in order**. Together they are idempotent, so re-running them is safe
 and nothing is ever dropped.
 
 | File | What it creates |
@@ -268,6 +269,7 @@ and nothing is ever dropped.
 | `003_queue_functions.sql` | `register_patient()`, `get_token_status()`, `get_public_queue()`, `call_next_patient()`, the status transitions, the `queue_events` trigger, and the execution grants |
 | `004_fix_doctor_delete.sql` | Guards the `queue_events` trigger so deleting a doctor who has queue history no longer fails with a foreign-key error during the cascade |
 | `005_sheet_export.sql` | Adds `queue_entries.exported_at` and its partial index, which the Google Sheets export uses to copy each finished row exactly once (section 14) |
+| `006_multi_hospital_support.sql` | Multi-tenant support: staff may read only their own hospital's row, and the public RPCs now return `hospital_timezone` so the TV and token pages use the clinic's clock |
 
 ### Running them
 
@@ -275,7 +277,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, then `005_sheet_export.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, then `006_multi_hospital_support.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 **Option B — the Supabase CLI**
@@ -363,7 +365,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. The five migrations and `seed.sql` must already have been run.
+`npm run dev`. The six migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -696,7 +698,7 @@ printing patient data.
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all five migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all six migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.
@@ -762,16 +764,72 @@ waiting room. Nothing else.
 
 ---
 
+## 17. Running several hospitals from one deployment
+
+One Vercel/Cloudflare deployment and one Supabase project can serve many clinics. Isolation comes from
+three things working together:
+
+- **`staff_users.hospital_id`** — every receptionist belongs to exactly one hospital. The dashboard,
+  doctor list, settings, QR poster and queue are all scoped to it, and RLS enforces the same boundary
+  in the database, not just the UI.
+- **The URL** — each clinic's poster encodes `/h/<hospital-id>`, so a patient's scan identifies the
+  clinic. `/register` (the pre-multi-clinic poster) still works while the database holds exactly one
+  hospital; once there are two it shows "scan the QR code at reception again".
+- **The doctor** — a doctor belongs to one hospital, so `/token/<public-id>` and `/display/<doctor-id>`
+  need no hospital in the URL.
+- **The staff login URL** — each clinic's receptionist uses `/staff/login/<hospital-id>`, which shows
+  that clinic's name and address before anyone signs in and refuses an account belonging to another
+  clinic. `/staff/login` remains the generic address.
+
+### Adding a clinic
+
+Run these in the Supabase SQL editor, replacing the values. The hospital and doctor UUIDs are
+generated by Postgres and echoed back — note them, because the QR poster lives at
+`https://<your-site>/h/<hospital-id>`.
+
+```sql
+-- 1. The hospital. Timezone decides when the token sequence resets each day.
+with new_hospital as (
+  insert into hospitals (name, address, phone, timezone)
+  values ('नवीन क्लिनिक', 'पत्ता, शहर, महाराष्ट्र', '+91 20 0000 0000', 'Asia/Kolkata')
+  returning id
+)
+select id from new_hospital;
+
+-- 2. Its doctors. Use the id returned above for hospital_id.
+insert into doctors (hospital_id, name, department, room_number, display_order)
+values
+  ('<hospital-id>', 'डॉ. नाव', 'सामान्य वैद्यक', '१', 1);
+
+-- 3. After creating the login in Authentication → Users, link it to the clinic.
+insert into staff_users (id, hospital_id, full_name, role)
+values ('<auth-user-id>', '<hospital-id>', 'रिसेप्शन', 'reception');
+```
+
+Then sign in as that receptionist and open **QR कोड**: the poster is already encoded with the new
+hospital's URL, the TV links under it list only that clinic's doctors, and the reception login link
+for `/staff/login/<hospital-id>` is shown there with a copy button — share that link with the
+clinic's receptionist.
+
+### What stays shared
+
+The database, the deployment and the Google Sheet export. The export writes every hospital's rows
+into the same sheet, with the `Doctor` and `Room` columns making the clinic obvious; if one clinic
+needs its own sheet, deploy a second copy of the function with a different `HOSPITAL_ID` and
+`GOOGLE_SHEET_ID` (section 14).
+
+---
+
 ## Scope
 
 **Built (MVP):** queue and token management, patient self-registration by QR, live token status,
 staff dashboard, doctor management, hospital settings, TV display, Marathi UI and numerals, Marathi
 speech with a toggle, QR poster generation, staff authentication, realtime updates, demo mode,
-tests.
+several hospitals on one deployment (section 17), tests.
 
 **Not built, deliberately:** payments, billing, pharmacy, laboratory, EMR, appointment calendars,
 insurance, patient accounts, SMS, WhatsApp, push notifications, an AI chatbot, analytics
-dashboards, multi-branch support.
+dashboards.
 
 The schema leaves room for some of these later — the hospital is a table, not a constant, and
 `queue_entries` already carries a `queue_date`, so appointments or a second branch would be a data

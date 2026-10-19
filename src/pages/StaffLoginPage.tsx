@@ -1,9 +1,9 @@
 import { AlertCircle, HeartPulse, LogIn } from 'lucide-react'
-import { useEffect, useId, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { Button } from '../components/common/Button'
-import { LoadingState } from '../components/common/Feedback'
+import { EmptyState, LoadingState } from '../components/common/Feedback'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { useStaffAuth } from '../hooks/useStaffAuth'
@@ -22,10 +22,19 @@ const INPUT_CLASSES =
  * application's own tables (spec §19). In demo mode the form is pre-filled with
  * the single demo account so the system can be shown to the doctor without a
  * backend at all.
+ *
+ * With several clinics on one deployment, each clinic shares its own address,
+ * `/staff/login/<hospital-id>`. The id in the path is what lets this screen show
+ * that clinic's name and address before anyone has signed in — after sign-in the
+ * dashboard header shows the same name. The bare `/staff/login` remains valid
+ * for generic links.
  */
 export function StaffLoginPage() {
-  const { signIn, session, loading } = useStaffAuth()
-  const { hospital } = useHospital()
+  const { hospitalId: routeHospitalId } = useParams<{ hospitalId?: string }>()
+  const requiredHospitalId = routeHospitalId ?? null
+
+  const { signIn, signOut, session, loading } = useStaffAuth()
+  const { hospital, loading: hospitalLoading } = useHospital(routeHospitalId)
   const { messages } = useLanguage()
   const t = messages.ui.login
   const navigate = useNavigate()
@@ -39,9 +48,18 @@ export function StaffLoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * Set while a hospital-specific sign-in is in flight. Without it the effect
+   * below would navigate to the dashboard the instant `signIn` sets the session,
+   * before this page can check that the account belongs to the clinic in the
+   * URL. A ref rather than state because it must be read by the effect without
+   * causing another render.
+   */
+  const skipAutoRedirect = useRef(false)
+
   // Already signed in? Go straight to the queue.
   useEffect(() => {
-    if (!loading && session) {
+    if (!loading && session && !skipAutoRedirect.current) {
       navigate('/staff/dashboard', { replace: true })
     }
   }, [loading, session, navigate])
@@ -52,19 +70,57 @@ export function StaffLoginPage() {
 
     setSubmitting(true)
     setError(null)
+    skipAutoRedirect.current = Boolean(requiredHospitalId)
 
     try {
-      await signIn(email, password)
+      const next = await signIn(email, password)
+
+      // The link names clinic A, but these credentials belong to clinic B.
+      // Signing B in here would show a dashboard whose header contradicts the
+      // login screen the receptionist just used, so refuse it outright.
+      if (requiredHospitalId && next.hospitalId !== requiredHospitalId) {
+        await signOut()
+        setError(t.wrongHospital)
+        setSubmitting(false)
+        return
+      }
+
       navigate('/staff/dashboard', { replace: true })
     } catch (caught) {
       logTechnicalError('StaffLoginPage — signIn', caught)
       setError(toUserMessage(caught, messages))
       setSubmitting(false)
+    } finally {
+      skipAutoRedirect.current = false
     }
   }
 
   if (loading) {
     return <LoadingState message={t.checking} />
+  }
+
+  // A hospital link whose id does not resolve gets no form at all: there is no
+  // queue to sign in to, and the message tells staff what to do about it.
+  if (requiredHospitalId && hospitalLoading) {
+    return <LoadingState message={messages.ui.common.loading} />
+  }
+
+  if (requiredHospitalId && !hospital) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-slate-100 px-4 py-10">
+        <div className="w-full max-w-sm">
+          <EmptyState
+            title={t.hospitalMissingTitle}
+            description={t.hospitalMissingDescription}
+          />
+          <p className="mt-2 text-center text-sm text-slate-500">
+            <Link to="/" className="font-semibold text-brand-700 hover:underline">
+              {t.backHome}
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -77,6 +133,15 @@ export function StaffLoginPage() {
           <h1 className="text-xl font-extrabold text-slate-900">
             {hospital?.name ?? messages.ui.common.hospitalFallback}
           </h1>
+          {/* Only on a hospital-specific link: this is the same name and
+              address printed on that clinic's poster, so staff can confirm at a
+              glance that they opened the right clinic's login. */}
+          {requiredHospitalId && hospital?.address ? (
+            <p className="mt-1 text-sm text-slate-500">{hospital.address}</p>
+          ) : null}
+          {requiredHospitalId && hospital?.phone ? (
+            <p className="text-sm text-slate-500">{hospital.phone}</p>
+          ) : null}
           <p className="mt-1 text-sm text-slate-600">{t.subtitle}</p>
         </div>
 

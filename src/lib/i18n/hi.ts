@@ -249,6 +249,12 @@ export const hi: Messages = {
       loadingDoctors: 'जानकारी लोड हो रही है…',
       emptyTitle: 'अभी कोई कतार उपलब्ध नहीं है।',
       emptyDescription: 'कृपया रिसेप्शन से संपर्क करें।',
+      hospitalMissingTitle: 'यह अस्पताल नहीं मिला।',
+      hospitalMissingDescription:
+        'कृपया रिसेप्शन पर लगा QR कोड फिर से स्कैन करें या रिसेप्शन से संपर्क करें।',
+      queueSummaryTitle: 'अभी की कतार',
+      nowServing: 'अभी चल रहा',
+      waitingLabel: 'प्रतीक्षा में',
     },
 
     token: {
@@ -317,6 +323,11 @@ export const hi: Messages = {
       submit: 'लॉगिन करें',
       backHome: 'मुख्य पेज पर वापस जाएँ',
       demoMode: 'डेमो मोड:',
+      hospitalMissingTitle: 'यह अस्पताल नहीं मिला।',
+      hospitalMissingDescription:
+        'लॉगिन लिंक गलत है। कृपया इस अस्पताल की सही लिंक इस्तेमाल करें या व्यवस्थापक से संपर्क करें।',
+      wrongHospital:
+        'यह खाता इस अस्पताल से जुड़ा नहीं है। कृपया इस अस्पताल के कर्मचारी के खाते से लॉगिन करें।',
     },
 
     notFound: {
@@ -350,6 +361,11 @@ export const hi: Messages = {
       displayLinksDescription: 'यह लिंक टीवी, मॉनिटर या टैबलेट पर खोलें। मरीज़ों के नाम यहाँ नहीं दिखते।',
       noDoctorsTitle: 'अभी कोई डॉक्टर नहीं जोड़ा गया।',
       noDoctorsDescription: 'डिस्प्ले लिंक पाने के लिए पहले डॉक्टर जोड़ें।',
+      staffLinkTitle: 'रिसेप्शन लॉगिन लिंक',
+      staffLinkDescription:
+        'यह लिंक इस अस्पताल के रिसेप्शन के लिए सहेजें। इस लिंक से लॉगिन करने पर इसी अस्पताल का नाम दिखता है।',
+      copyLink: 'कॉपी करें',
+      copied: 'कॉपी हो गया',
     },
 
     display: {

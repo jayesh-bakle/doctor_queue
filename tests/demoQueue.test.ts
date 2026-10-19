@@ -6,7 +6,9 @@ import { installBrowserEnv, demoStorage, DEMO_STATE_KEY } from './helpers/browse
 // time whether a `window` exists, and reads localStorage lazily.
 installBrowserEnv()
 
-const { demoDataSource, DEMO_CREDENTIALS } = await import('../src/lib/datasource/demoDataSource')
+const { demoDataSource, DEMO_CREDENTIALS, DEMO_HOSPITAL_ID } = await import(
+  '../src/lib/datasource/demoDataSource'
+)
 const { AppError } = await import('../src/lib/errors')
 const { formatToken } = await import('../src/lib/marathiDigits')
 
@@ -610,6 +612,35 @@ describe('realtime notifications', () => {
 
     expect(notified).toBe(0)
     unsubscribe()
+  })
+})
+
+describe('multi-hospital scoping', () => {
+  const OTHER_HOSPITAL_ID = '99999999-9999-9999-9999-999999999999'
+
+  it('lists only the doctors of the requested hospital', async () => {
+    const scoped = await demoDataSource.listDoctors({ hospitalId: DEMO_HOSPITAL_ID })
+
+    expect(scoped.length).toBeGreaterThanOrEqual(2)
+    expect(await demoDataSource.listDoctors({ hospitalId: OTHER_HOSPITAL_ID })).toEqual([])
+  })
+
+  it('returns the hospital by id, and null for an unknown id', async () => {
+    const found = await demoDataSource.getHospital(DEMO_HOSPITAL_ID)
+    expect(found?.id).toBe(DEMO_HOSPITAL_ID)
+
+    expect(await demoDataSource.getHospital(OTHER_HOSPITAL_ID)).toBeNull()
+  })
+
+  it('returns the hospital when no id is given, as on a one-clinic install', async () => {
+    expect((await demoDataSource.getHospital())?.id).toBe(DEMO_HOSPITAL_ID)
+  })
+
+  it('publishes the hospital timezone so no screen has to assume IST', async () => {
+    const { first } = await twoDoctors(demoDataSource)
+    const queue = await demoDataSource.getPublicQueue(first)
+
+    expect(queue?.hospital_timezone).toBe('Asia/Kolkata')
   })
 })
 

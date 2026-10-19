@@ -2,7 +2,7 @@
 -- seed.sql
 -- Doctor Queue System — sample data for local development and demos
 --
--- Run AFTER all five migrations. Safe to re-run.
+-- Run AFTER all six migrations. Safe to re-run.
 --
 -- UUIDs are fixed so that QR codes, TV display URLs and printed posters stay
 -- valid across database rebuilds.

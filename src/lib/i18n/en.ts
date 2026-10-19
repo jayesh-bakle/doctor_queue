@@ -291,6 +291,12 @@ export const en: Messages = {
       loadingDoctors: 'Loading…',
       emptyTitle: 'No queue is available right now.',
       emptyDescription: 'Please speak to reception.',
+      hospitalMissingTitle: 'This hospital could not be found.',
+      hospitalMissingDescription:
+        'Please scan the QR code at reception again, or speak to reception.',
+      queueSummaryTitle: 'Current queue',
+      nowServing: 'Now serving',
+      waitingLabel: 'Waiting',
     },
 
     token: {
@@ -359,6 +365,11 @@ export const en: Messages = {
       submit: 'Sign in',
       backHome: 'Back to the home page',
       demoMode: 'Demo mode:',
+      hospitalMissingTitle: 'This hospital was not found.',
+      hospitalMissingDescription:
+        'This login link is not valid. Use the correct link for this hospital, or contact the administrator.',
+      wrongHospital:
+        "This account is not linked to this hospital. Sign in with an account for this hospital's staff.",
     },
 
     notFound: {
@@ -393,6 +404,11 @@ export const en: Messages = {
         'Open these on a TV, monitor or tablet. No patient names appear there.',
       noDoctorsTitle: 'No doctors have been added yet.',
       noDoctorsDescription: 'Add a doctor first to get the display links.',
+      staffLinkTitle: 'Reception login link',
+      staffLinkDescription:
+        "Save this link for this hospital's reception. Signing in through it shows this hospital's name.",
+      copyLink: 'Copy',
+      copied: 'Copied',
     },
 
     display: {

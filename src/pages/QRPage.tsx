@@ -1,4 +1,4 @@
-import { Download, Printer, QrCode as QrCodeIcon } from 'lucide-react'
+import { Copy, Download, Printer, QrCode as QrCodeIcon } from 'lucide-react'
 import QRCode from 'qrcode'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -9,7 +9,7 @@ import { EmptyState } from '../components/common/Feedback'
 import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
-import { registrationUrl, siteOrigin } from '../lib/env'
+import { hospitalRegistrationUrl, hospitalStaffLoginUrl, siteOrigin } from '../lib/env'
 import { logTechnicalError } from '../lib/errors'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -34,14 +34,24 @@ export function QRPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>(searchParams.get('doctorId') ?? '')
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [qrError, setQrError] = useState(false)
+  const [loginLinkCopied, setLoginLinkCopied] = useState(false)
 
+  // One poster per clinic. The hospital id in the path is what makes the scan
+  // land on this hospital's queue rather than an ambiguous /register. The
+  // optional doctor id only preselects a doctor on that same form.
   const targetUrl = useMemo(() => {
-    const base = registrationUrl() || '/register'
+    if (!hospital) return ''
+    const base = hospitalRegistrationUrl(hospital.id)
     return selectedDoctorId ? `${base}?doctorId=${selectedDoctorId}` : base
-  }, [selectedDoctorId])
+  }, [hospital, selectedDoctorId])
 
   useEffect(() => {
     let cancelled = false
+
+    if (!targetUrl) {
+      setDataUrl(null)
+      return
+    }
 
     void (async () => {
       try {
@@ -81,6 +91,22 @@ export function QRPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  /**
+   * The reception login link contains a UUID, so it can only be shared by
+   * copying. Clipboard access is denied on some browsers and insecure origins,
+   * hence the try — the URL stays on screen either way, so nothing is lost.
+   */
+  const handleCopyLoginLink = async () => {
+    if (!hospital) return
+    try {
+      await navigator.clipboard.writeText(hospitalStaffLoginUrl(hospital.id))
+      setLoginLinkCopied(true)
+      window.setTimeout(() => setLoginLinkCopied(false), 2000)
+    } catch (caught) {
+      logTechnicalError('QRPage — copy staff login link', caught)
+    }
   }
 
   const origin = siteOrigin()
@@ -136,10 +162,12 @@ export function QRPage() {
               <p className="text-xs text-slate-500">{t.doctorHint}</p>
             </div>
 
-            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              {t.addressInQr}{' '}
-              <span className="font-mono break-all text-slate-800">{targetUrl}</span>
-            </p>
+            {targetUrl ? (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                {t.addressInQr}{' '}
+                <span className="font-mono break-all text-slate-800">{targetUrl}</span>
+              </p>
+            ) : null}
 
             {qrError ? (
               <p role="alert" className="text-sm font-medium text-red-700">
@@ -224,6 +252,27 @@ export function QRPage() {
             )}
           </CardBody>
         </Card>
+
+        {/* ---- This clinic's reception login link ------------------------ */}
+        {hospital ? (
+          <Card className="no-print">
+            <CardHeader title={t.staffLinkTitle} description={t.staffLinkDescription} />
+            <CardBody>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                <code className="font-mono text-xs break-all text-slate-600">
+                  {hospitalStaffLoginUrl(hospital.id)}
+                </code>
+                <Button
+                  variant="secondary"
+                  onClick={handleCopyLoginLink}
+                  icon={<Copy className="size-4" aria-hidden="true" />}
+                >
+                  {loginLinkCopied ? t.copied : t.copyLink}
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+        ) : null}
       </div>
     </StaffLayout>
   )

@@ -85,7 +85,20 @@ export interface QueueDataSource {
   readonly kind: 'supabase' | 'demo'
 
   // ---- doctors ----------------------------------------------------------
-  listDoctors(options?: { includeInactive?: boolean }): Promise<DoctorOption[]>
+  /**
+   * Active doctors, optionally for one hospital.
+   *
+   * `hospitalId` is what keeps tenants apart: one deployment serves several
+   * clinics, so an unfiltered list would show another clinic's doctors on the
+   * registration form. Without it the query keeps its old behaviour — the RLS
+   * policy still hides other hospitals from a signed-in staff member.
+   */
+  listDoctors(options?: { includeInactive?: boolean; hospitalId?: string }): Promise<DoctorOption[]>
+  /**
+   * Adds a doctor to the signed-in staff member's hospital. The hospital is not
+   * a parameter on purpose: it comes from `staff_users`, and the RLS `with
+   * check` on `doctors` rejects any other hospital.
+   */
   createDoctor(input: DoctorInput): Promise<DoctorOption>
   updateDoctor(id: string, input: Partial<DoctorInput>): Promise<DoctorOption>
   /**
@@ -116,7 +129,16 @@ export interface QueueDataSource {
   complete(publicId: string): Promise<void>
 
   // ---- hospital settings ------------------------------------------------
-  getHospital(): Promise<HospitalRow | null>
+  /**
+   * One hospital's settings row.
+   *
+   * With an id, that hospital (a patient scanning `/h/:hospitalId`). Without
+   * one, the signed-in staff member's hospital, and otherwise the only hospital
+   * in the database — `null` once there are two or more, because guessing would
+   * show the wrong clinic's name and timezone.
+   */
+  getHospital(hospitalId?: string): Promise<HospitalRow | null>
+  /** Updates the signed-in staff member's hospital; scoped by RLS. */
   updateHospital(input: HospitalSettingsInput): Promise<void>
 
   // ---- realtime ---------------------------------------------------------

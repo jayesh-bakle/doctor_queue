@@ -45,12 +45,28 @@ export function siteOrigin(): string {
   return ''
 }
 
-/** The URL a patient lands on after scanning the poster's QR code. */
-export function registrationUrl(): string {
-  return `${siteOrigin()}/register`
+/**
+ * The URL a patient lands on after scanning a clinic's poster.
+ *
+ * The hospital id is in the path because one deployment serves several clinics:
+ * the QR code is what tells the app which queue the patient is standing in.
+ */
+export function hospitalRegistrationUrl(hospitalId: string): string {
+  return `${siteOrigin()}/h/${hospitalId}`
 }
 
 /** The public TV URL for a given doctor. */
 export function displayUrl(doctorId: string): string {
   return `${siteOrigin()}/display/${doctorId}`
+}
+
+/**
+ * The staff sign-in page for one clinic, shared with its receptionist.
+ *
+ * The same reason as the patient URL: one deployment serves several clinics,
+ * and the link is the only thing that can tell the login screen which clinic's
+ * name to show before anyone has signed in.
+ */
+export function hospitalStaffLoginUrl(hospitalId: string): string {
+  return `${siteOrigin()}/staff/login/${hospitalId}`
 }

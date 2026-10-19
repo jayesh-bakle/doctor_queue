@@ -105,6 +105,8 @@ export interface TokenStatusResult {
   room_number: string
   hospital_name: string
   hospital_phone: string | null
+  /** The hospital's own clock, so the token page never assumes IST. */
+  hospital_timezone: string
   current_token: number | null
   next_token: number | null
   waiting_count: number
@@ -123,6 +125,8 @@ export interface PublicQueueResult {
   hospital_name: string
   hospital_address: string | null
   hospital_phone: string | null
+  /** The hospital's own clock, so the TV never assumes IST. */
+  hospital_timezone: string
   display_message: string
   announcement_enabled: boolean
   avg_consultation_minutes: number

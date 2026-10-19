@@ -22,7 +22,7 @@ import { StaffLayout } from '../layouts/StaffLayout'
  * and without losing that doctor's historical queue records.
  */
 export function DoctorsPage() {
-  const { doctors, loading, error, reload } = useDoctors(true)
+  const { doctors, loading, error, reload } = useDoctors({ includeInactive: true })
   const { messages } = useLanguage()
   const t = messages.ui.doctors
 

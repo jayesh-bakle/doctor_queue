@@ -15,7 +15,12 @@ interface StaffAuthValue {
   session: StaffSession | null
   /** True while the initial session is being restored. */
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  /**
+   * Signs in and returns the session it created. Returning it lets the login
+   * page check which hospital the account belongs to before navigating — the
+   * context's `session` state cannot be read synchronously here.
+   */
+  signIn: (email: string, password: string) => Promise<StaffSession>
   signOut: () => Promise<void>
 }
 
@@ -57,6 +62,7 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const next = await dataSource.signIn(email, password)
     setSession(next)
+    return next
   }, [])
 
   const signOut = useCallback(async () => {

@@ -6,9 +6,9 @@ import { AnnouncementToggle } from '../components/common/AnnouncementToggle'
 import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 import { TokenDisplay } from '../components/common/TokenDisplay'
 import { usePublicQueue } from '../hooks/usePublicQueue'
-import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { displayUrl } from '../lib/env'
+import { DEFAULT_TIME_ZONE } from '../lib/utils'
 import { speak } from '../lib/speech'
 import { DisplayLayout } from '../layouts/DisplayLayout'
 
@@ -31,7 +31,6 @@ import { DisplayLayout } from '../layouts/DisplayLayout'
 export function DisplayPage() {
   const { doctorId } = useParams<{ doctorId: string }>()
   const { data, loading, notFound, error } = usePublicQueue(doctorId)
-  const { hospital } = useHospital()
   const { language, messages } = useLanguage()
   const t = messages.ui.display
 
@@ -86,7 +85,9 @@ export function DisplayPage() {
     )
   }
 
-  const timezone = hospital?.timezone ?? 'Asia/Kolkata'
+  // The RPC returns the hospital's own timezone, so a display screen never has
+  // to assume which clinic it belongs to.
+  const timezone = data.hospital_timezone || DEFAULT_TIME_ZONE
   const queueEmpty = data.current_token === null && data.next_token === null
 
   return (

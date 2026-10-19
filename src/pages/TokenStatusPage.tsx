@@ -7,9 +7,9 @@ import { EmptyState, ErrorState, LoadingState } from '../components/common/Feedb
 import { TokenDisplay } from '../components/common/TokenDisplay'
 import { SituationCard } from '../components/patient/SituationCard'
 import { TokenDetailsCard } from '../components/patient/TokenDetailsCard'
-import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { useTokenStatus } from '../hooks/useTokenStatus'
+import { DEFAULT_TIME_ZONE } from '../lib/utils'
 import { PatientLayout } from '../layouts/PatientLayout'
 
 /**
@@ -29,7 +29,6 @@ import { PatientLayout } from '../layouts/PatientLayout'
 export function TokenStatusPage() {
   const { publicId } = useParams<{ publicId: string }>()
   const { data, loading, notFound, error, refresh } = useTokenStatus(publicId)
-  const { hospital } = useHospital()
   const { messages } = useLanguage()
   const t = messages.ui.token
 
@@ -72,7 +71,7 @@ export function TokenStatusPage() {
     )
   }
 
-  const timezone = hospital?.timezone ?? 'Asia/Kolkata'
+  const timezone = data.hospital_timezone || DEFAULT_TIME_ZONE
 
   const situation = messages.describeSituation({
     status: data.status,
