@@ -11,7 +11,6 @@ import { useLanguage } from '../hooks/useLanguage'
 import { usePublicQueue } from '../hooks/usePublicQueue'
 import { dataSource } from '../lib/datasource'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
-import { formatToken, patientCountLabel } from '../lib/marathiDigits'
 import type { DoctorOption } from '../types/queue'
 import { PatientLayout } from '../layouts/PatientLayout'
 
@@ -41,10 +40,10 @@ function DoctorQueueSummary({ doctor }: { doctor: DoctorOption }) {
       <span className="text-sm text-slate-600">
         {t.nowServing}:{' '}
         <span className="font-bold text-slate-900">
-          {data?.current_token != null ? formatToken(data.current_token) : '—'}
+          {data?.current_token != null ? messages.token(data.current_token) : '—'}
         </span>
         <span className="mx-2 text-slate-300">·</span>
-        {t.waitingLabel}: <span className="font-semibold">{patientCountLabel(data?.waiting_count ?? 0)}</span>
+        {t.waitingLabel}: <span className="font-semibold">{messages.patientCount(data?.waiting_count ?? 0)}</span>
       </span>
     </li>
   )

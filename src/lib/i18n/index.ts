@@ -8,32 +8,32 @@
  */
 
 import { en } from './en'
-import { hi } from './hi'
+import { gu } from './gu'
 import { mr } from './mr'
 import type { Language, Messages } from './types'
 
 export type { Language, Messages, DescribeSituationParams, UiMessages } from './types'
 
-/** Marathi is the clinic's working language; anything else is a fallback. */
-export const DEFAULT_LANGUAGE: Language = 'mr'
+/** English is the clinic's default; the other locales are opt-in. */
+export const DEFAULT_LANGUAGE: Language = 'en'
 
-export const LANGUAGES = ['mr', 'hi', 'en'] as const
+export const LANGUAGES = ['en', 'mr', 'gu'] as const
 
-export const REGISTRY: Record<Language, Messages> = { mr, hi, en }
+export const REGISTRY: Record<Language, Messages> = { en, mr, gu }
 
 /**
  * Each language's own name for itself — an autonym.
  *
  * Deliberately NOT read from `Messages.name`. A switcher that renders "Marathi"
- * in English, "मराठी" in Marathi and "मराठी" in Hindi would move its own labels
+ * in English, "मराठी" in Marathi and "ગુજરાતી" in Gujarati would move its own labels
  * around as the user switches, and a reader who cannot read the current language
  * is exactly the person who needs the switcher. Written in its own script, each
  * option stays recognisable no matter what is on screen.
  */
 export const LANGUAGE_LABELS: Record<Language, string> = {
-  mr: 'मराठी',
-  hi: 'हिंदी',
   en: 'English',
+  mr: 'मराठी',
+  gu: 'ગુજરાતી',
 }
 
 /** Narrows an arbitrary stored string to a language this build actually has. */

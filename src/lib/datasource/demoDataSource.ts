@@ -67,18 +67,18 @@ const DEMO_DOCTOR_GP = '22222222-2222-2222-2222-222222222222'
 const DEMO_DOCTOR_ENT = '33333333-3333-3333-3333-333333333333'
 
 const SAMPLE_PATIENT_NAMES = [
-  'संदीप जाधव',
-  'अमोल पाटील',
-  'प्रिया शिंदे',
-  'राहुल मोरे',
-  'स्नेहा कुलकर्णी',
-  'विकास देशमुख',
-  'अनिता जोशी',
-  'सचिन गायकवाड',
-  'मनीषा पवार',
-  'नितीन भोसले',
-  'स्वाती काळे',
-  'प्रशांत थोरात',
+  'Sandeep Jadhav',
+  'Amol Patil',
+  'Priya Shinde',
+  'Rahul More',
+  'Sneha Kulkarni',
+  'Vikas Deshmukh',
+  'Anita Joshi',
+  'Sachin Gaikwad',
+  'Manisha Pawar',
+  'Nitin Bhosale',
+  'Swati Kale',
+  'Prashant Thorat',
 ]
 
 // ---------------------------------------------------------------------------
@@ -94,12 +94,12 @@ interface DemoState {
 function buildInitialHospital(): HospitalRow {
   return {
     id: DEMO_HOSPITAL_ID,
-    name: 'श्री गणेश हॉस्पिटल',
-    address: 'मुख्य रस्ता, शिवाजी नगर, पुणे, महाराष्ट्र ४११००५',
+    name: 'Shree Ganesh Hospital',
+    address: 'Main Road, Shivaji Nagar, Pune, Maharashtra 411005',
     phone: '+91 20 1234 5678',
     timezone: 'Asia/Kolkata',
     announcement_enabled: true,
-    display_message: 'कृपया आपल्या क्रमांकाची वाट पाहा.',
+    display_message: 'Please wait for your token number to be called.',
     avg_consultation_minutes: 10,
     created_at: new Date().toISOString(),
   }
@@ -111,9 +111,9 @@ function buildInitialDoctors(): DoctorRow[] {
     {
       id: DEMO_DOCTOR_GP,
       hospital_id: DEMO_HOSPITAL_ID,
-      name: 'डॉ. अमोल देशमुख',
-      department: 'सामान्य वैद्यक',
-      room_number: '१',
+      name: 'Dr. Amol Deshmukh',
+      department: 'General Medicine',
+      room_number: '1',
       is_active: true,
       display_order: 1,
       created_at: now,
@@ -121,9 +121,9 @@ function buildInitialDoctors(): DoctorRow[] {
     {
       id: DEMO_DOCTOR_ENT,
       hospital_id: DEMO_HOSPITAL_ID,
-      name: 'डॉ. स्वप्नील पाटील',
-      department: 'कान-नाक-घसा',
-      room_number: '२',
+      name: 'Dr. Swapnil Patil',
+      department: 'ENT',
+      room_number: '2',
       is_active: true,
       display_order: 2,
       created_at: now,
@@ -355,7 +355,7 @@ export const demoDataSource: QueueDataSource = {
     return state.doctors
       .filter((d) => (options?.hospitalId ? d.hospital_id === options.hospitalId : true))
       .filter((d) => (options?.includeInactive ? true : d.is_active))
-      .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name, 'mr'))
+      .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name, 'en'))
       .map(toDoctorOption)
   },
 
@@ -507,7 +507,7 @@ export const demoDataSource: QueueDataSource = {
     const session: StaffSession = {
       userId: 'demo-staff-user',
       email: DEMO_CREDENTIALS.email,
-      fullName: 'रिसेप्शन (डेमो)',
+      fullName: 'Reception (demo)',
       role: 'RECEPTION' as StaffRole,
       hospitalId: state.hospital.id,
     }

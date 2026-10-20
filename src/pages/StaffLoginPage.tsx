@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { Button } from '../components/common/Button'
 import { EmptyState, LoadingState } from '../components/common/Feedback'
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { useStaffAuth } from '../hooks/useStaffAuth'
@@ -126,6 +127,9 @@ export function StaffLoginPage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-slate-100 px-4 py-10">
       <div className="w-full max-w-sm">
+        <div className="mb-4 flex justify-center">
+          <LanguageSwitcher />
+        </div>
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex size-14 items-center justify-center rounded-2xl bg-brand-700 text-white">
             <HeartPulse className="size-7" aria-hidden="true" />

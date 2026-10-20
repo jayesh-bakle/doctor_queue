@@ -2,9 +2,9 @@
  * The contract every locale must satisfy.
  *
  * This is an interface rather than a flat key → string table for one reason:
- * Marathi and Hindi inflect differently from English, so a string of the shape
- * `"{{count}} patients are ahead of you"` cannot produce the Marathi sentence.
- * Marathi marks plurality on the noun itself —
+ * Marathi and Gujarati inflect differently from English, so a string of the
+ * shape `"{{count}} patients are ahead of you"` cannot produce the Marathi
+ * sentence. Marathi marks plurality on the noun itself —
  *
  *   मराठी    १ रुग्ण आपल्यापुढे आहे.     ३ रुग्णे आपल्यापुढे आहेत.
  *   English  1 patient is ahead of you.  3 patients are ahead of you.
@@ -22,7 +22,7 @@ import type { AppErrorCode } from '../errors'
 import type { PatientType, QueueStatus } from '../../types/database'
 import type { PatientSituation } from '../../types/queue'
 
-export type Language = 'mr' | 'hi' | 'en'
+export type Language = 'en' | 'mr' | 'gu'
 
 export interface DescribeSituationParams {
   status: QueueStatus
@@ -323,17 +323,17 @@ export interface Messages {
 
   // --- Numerals ------------------------------------------------------------
   // Numerals follow the language, not the data: English shows `027`, Marathi
-  // and Hindi show `०२७`.
+  // shows `०२७`, Gujarati shows `૦૨૭`.
 
-  /** A token number, zero-padded to three digits: `०२७` / `०२७` / `027`. */
+  /** A token number, zero-padded to three digits: `027` / `०२७` / `૦૨૭`. */
   token: (tokenNumber: number) => string
-  /** A quantity, unpadded: `२७` / `२७` / `27`. */
+  /** A quantity, unpadded: `27` / `२७` / `૨૭`. */
   count: (value: number) => string
   /** Rewrites digits inside a string, padding only pure numbers. */
   digits: (value: string | number, width?: number) => string
-  /** A clock time in the hospital's timezone: `१०:२४` / `१०:२४` / `10:24`. */
+  /** A clock time in the hospital's timezone: `10:24` / `१०:२४` / `૧૦:૨૪`. */
   time: (iso: string | Date, timeZone: string) => string
-  /** `७ ऑक्टोबर २०२६` / `७ अक्टूबर २०२६` / `7 October 2026`. */
+  /** `7 October 2026` / `७ ऑक्टोबर २०२६` / `૭ ઓક્ટોબર ૨૦૨૬`. */
   date: (iso: string | Date, timeZone: string) => string
   /** `बुधवार, ७ ऑक्टोबर २०२६` — used in the dashboard and TV headers. */
   dateWithWeekday: (iso: string | Date, timeZone: string) => string

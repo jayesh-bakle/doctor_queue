@@ -42,6 +42,11 @@ describe('normaliseMobile', () => {
     expect(normaliseMobile('९८७६५ ४३२१०')).toBe('9876543210')
   })
 
+  it('understands a number typed in Gujarati numerals', () => {
+    // A phone with a Gujarati keyboard produces these.
+    expect(normaliseMobile('૯૮૭૬૫ ૪૩૨૧૦')).toBe('9876543210')
+  })
+
   it('returns null for an empty field, because mobile is optional', () => {
     expect(normaliseMobile('')).toBeNull()
     expect(normaliseMobile('   ')).toBeNull()

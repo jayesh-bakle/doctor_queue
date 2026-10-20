@@ -20,14 +20,14 @@ const STATUSES: QueueStatus[] = ['WAITING', 'CALLED', 'IN_CONSULTATION', 'COMPLE
 const everyLanguage = LANGUAGES.map((language) => [language, getMessages(language)] as const)
 
 const mr = getMessages('mr')
-const hi = getMessages('hi')
+const gu = getMessages('gu')
 const en = getMessages('en')
 
 /**
  * The tests that justify the locale-module design.
  *
  * A flat key → string table would pass a "has this key" check and still produce
- * the wrong sentence, because Marathi and Hindi inflect the noun where English
+ * the wrong sentence, because Marathi and Gujarati inflect the noun where English
  * does not. These assertions are about the *output*, per language, which is the
  * only thing a patient ever sees.
  */
@@ -37,10 +37,10 @@ describe('numerals follow the language', () => {
     expect(mr.token(5)).toBe('००५')
   })
 
-  it('writes a Hindi token in Devanagari too', () => {
-    // Hindi and Marathi share the Devanagari digit set; only the words differ.
-    expect(hi.token(27)).toBe('०२७')
-    expect(hi.token(5)).toBe('००५')
+  it('writes a Gujarati token in Gujarati numerals, padded to three digits', () => {
+    // Gujarati has its own digit set; only the words and digits differ from en.
+    expect(gu.token(27)).toBe('૦૨૭')
+    expect(gu.token(5)).toBe('૦૦૫')
   })
 
   it('writes an English token in Western digits', () => {
@@ -51,14 +51,14 @@ describe('numerals follow the language', () => {
   it('pads counts differently from tokens, in every language', () => {
     // A count is not a token: "१२ रुग्ण" must never print as "०१२ रुग्ण".
     expect(mr.count(12)).toBe('१२')
-    expect(hi.count(12)).toBe('१२')
+    expect(gu.count(12)).toBe('૧૨')
     expect(en.count(12)).toBe('12')
   })
 
   it('never pads digits embedded in a longer string', () => {
     // The bug this guards: a naive `padStart` turns a clock time into nonsense.
     expect(mr.digits('10:24')).toBe('१०:२४')
-    expect(hi.digits('10:24')).toBe('१०:२४')
+    expect(gu.digits('10:24')).toBe('૧૦:૨૪')
     expect(en.digits('10:24')).toBe('10:24')
     for (const [language, messages] of everyLanguage) {
       expect(messages.digits('10:24'), language).toContain(':')
@@ -67,7 +67,7 @@ describe('numerals follow the language', () => {
 
   it('renders a room number without padding, in every language', () => {
     expect(mr.roomShort('1')).toBe('कक्ष क्र. १')
-    expect(hi.roomShort('1')).toBe('कक्ष क्र. १')
+    expect(gu.roomShort('1')).toBe('રૂમ ૧')
     expect(en.roomShort('1')).toBe('Room 1')
   })
 })
@@ -84,9 +84,10 @@ describe('quantities inflect correctly', () => {
     expect(en.patientCount(3)).toBe('3 patients')
   })
 
-  it('uses the Hindi noun, which does not change with the count', () => {
-    expect(hi.patientCount(1)).toBe('१ मरीज़')
-    expect(hi.patientCount(3)).toBe('३ मरीज़')
+  it('changes the Gujarati noun between one and many', () => {
+    // Gujarati, like Marathi, marks the plural on the noun itself.
+    expect(gu.patientCount(1)).toBe('૧ દર્દી')
+    expect(gu.patientCount(3)).toBe('૩ દર્દીઓ')
   })
 
   it('distinguishes one from many in all three languages', () => {
@@ -100,7 +101,7 @@ describe('quantities inflect correctly', () => {
     expect(en.minutes(30)).toBe('30 minutes')
     for (const [language, messages] of everyLanguage) {
       const text = messages.minutes(30)
-      expect(text, `${language} minutes`).toMatch(/3|३/)
+      expect(text, `${language} minutes`).toMatch(/3|३|૩/)
       expect(text.length, `${language} minutes`).toBeGreaterThan(2)
     }
   })
@@ -147,7 +148,7 @@ describe('describeSituation', () => {
   it('phrases the same situation differently per language', () => {
     const called = (messages: Messages) =>
       messages.describeSituation({ ...base, status: 'CALLED' })
-    expect(new Set([called(mr).headline, called(hi).headline, called(en).headline]).size).toBe(3)
+    expect(new Set([called(mr).headline, called(gu).headline, called(en).headline]).size).toBe(3)
   })
 })
 
@@ -159,7 +160,7 @@ describe('dates and calendar words', () => {
     }
     expect(en.months[0]).toBe('January')
     expect(mr.months[0]).toBe('जानेवारी')
-    expect(hi.months[0]).toBe('जनवरी')
+    expect(gu.months[0]).toBe('જાન્યુઆરી')
   })
 
   it('has seven weekdays starting at Sunday, in every language', () => {
@@ -169,7 +170,7 @@ describe('dates and calendar words', () => {
     }
     expect(en.weekdays[0]).toBe('Sunday')
     expect(mr.weekdays[0]).toBe('रविवार')
-    expect(hi.weekdays[0]).toBe('रविवार')
+    expect(gu.weekdays[0]).toBe('રવિવાર')
   })
 
   it('formats a date with the language own digits and month name', () => {
@@ -177,14 +178,14 @@ describe('dates and calendar words', () => {
     const iso = '2026-10-07T06:00:00Z'
     expect(mr.date(iso, 'Asia/Kolkata')).toBe('७ ऑक्टोबर २०२६')
     expect(en.date(iso, 'Asia/Kolkata')).toBe('7 October 2026')
-    expect(hi.date(iso, 'Asia/Kolkata')).toBe('७ अक्टूबर २०२६')
+    expect(gu.date(iso, 'Asia/Kolkata')).toBe('૭ ઓક્ટોબર ૨૦૨૬')
   })
 
   it('formats a clock time in the hospital timezone, not the device own', () => {
     const iso = '2026-10-07T06:00:00Z'
     expect(en.time(iso, 'Asia/Kolkata')).toBe('11:30')
     expect(mr.time(iso, 'Asia/Kolkata')).toBe('११:३०')
-    expect(hi.time(iso, 'Asia/Kolkata')).toBe('११:३०')
+    expect(gu.time(iso, 'Asia/Kolkata')).toBe('૧૧:૩૦')
   })
 
   it('survives a timezone the browser cannot parse', () => {
@@ -208,12 +209,12 @@ describe('the announcement', () => {
       'टोकन क्रमांक ०२७, कृपया तपासणी कक्ष क्रमांक १ मध्ये या.',
     )
     expect(en.announcement(27, '1')).toBe('Token number 027, please come to room 1.')
-    expect(hi.announcement(27, '1')).toContain('०२७')
-    expect(hi.announcement(27, '1')).toContain('१')
+    expect(gu.announcement(27, '1')).toContain('૦૨૭')
+    expect(gu.announcement(27, '1')).toContain('૧')
   })
 
   it('differs between languages, so a wrong-language voice is detectable', () => {
-    expect(new Set([mr.announcement(27, '1'), hi.announcement(27, '1'), en.announcement(27, '1')]).size).toBe(3)
+    expect(new Set([mr.announcement(27, '1'), gu.announcement(27, '1'), en.announcement(27, '1')]).size).toBe(3)
   })
 })
 
@@ -241,7 +242,7 @@ describe('the registry', () => {
     }
   })
 
-  it('falls back to Marathi rather than handing back undefined', () => {
+  it('falls back to the default language rather than handing back undefined', () => {
     // The type system cannot protect a value that came out of localStorage.
     expect(getMessages('kl' as unknown as Language)).toBe(getMessages(DEFAULT_LANGUAGE))
   })
@@ -249,9 +250,9 @@ describe('the registry', () => {
 
 describe('the switcher labels', () => {
   it('names each language in its own script, so it is readable when switched to', () => {
-    expect(LANGUAGE_LABELS.mr).toBe('मराठी')
-    expect(LANGUAGE_LABELS.hi).toBe('हिंदी')
     expect(LANGUAGE_LABELS.en).toBe('English')
+    expect(LANGUAGE_LABELS.mr).toBe('मराठी')
+    expect(LANGUAGE_LABELS.gu).toBe('ગુજરાતી')
   })
 
   it('covers exactly the languages in the registry', () => {
@@ -261,9 +262,9 @@ describe('the switcher labels', () => {
 
 describe('isLanguage', () => {
   it('accepts the three languages and nothing else', () => {
-    expect(isLanguage('mr')).toBe(true)
-    expect(isLanguage('hi')).toBe(true)
     expect(isLanguage('en')).toBe(true)
+    expect(isLanguage('mr')).toBe(true)
+    expect(isLanguage('gu')).toBe(true)
     expect(isLanguage('fr')).toBe(false)
     expect(isLanguage(null)).toBe(false)
     expect(isLanguage(undefined)).toBe(false)
@@ -272,23 +273,23 @@ describe('isLanguage', () => {
 })
 
 describe('the stored preference', () => {
-  it('defaults to Marathi when nothing has been chosen', () => {
+  it('defaults to English when nothing has been chosen', () => {
     installBrowserEnv()
-    expect(loadStoredLanguage()).toBe('mr')
-    expect(DEFAULT_LANGUAGE).toBe('mr')
+    expect(loadStoredLanguage()).toBe('en')
+    expect(DEFAULT_LANGUAGE).toBe('en')
   })
 
   it('remembers a choice across a reload', () => {
     installBrowserEnv()
-    saveStoredLanguage('en')
-    expect(demoStorage().getItem('queue.language')).toBe('en')
-    expect(loadStoredLanguage()).toBe('en')
+    saveStoredLanguage('mr')
+    expect(demoStorage().getItem('queue.language')).toBe('mr')
+    expect(loadStoredLanguage()).toBe('mr')
   })
 
   it('ignores a stored value this build does not have', () => {
     installBrowserEnv()
     demoStorage().setItem('queue.language', 'kl')
-    expect(loadStoredLanguage()).toBe('mr')
+    expect(loadStoredLanguage()).toBe('en')
   })
 
   it('does not throw when storage is unavailable', () => {
@@ -303,7 +304,7 @@ describe('the stored preference', () => {
       writable: true,
     })
     try {
-      expect(loadStoredLanguage()).toBe('mr')
+      expect(loadStoredLanguage()).toBe('en')
       expect(() => saveStoredLanguage('en')).not.toThrow()
     } finally {
       installBrowserEnv()
@@ -341,7 +342,7 @@ describe('UiMessages completeness', () => {
 
   it('numbers the QR poster steps in each language own digits', () => {
     expect(mr.ui.qr.steps[0]).toMatch(/^१/)
-    expect(hi.ui.qr.steps[0]).toMatch(/^१/)
+    expect(gu.ui.qr.steps[0]).toMatch(/^૧/)
     expect(en.ui.qr.steps[0]).toMatch(/^1/)
     for (const [language, messages] of everyLanguage) {
       expect(messages.ui.qr.steps, language).toHaveLength(4)

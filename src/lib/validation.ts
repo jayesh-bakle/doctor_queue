@@ -10,7 +10,8 @@
 
 import type { PatientType } from '../types/database'
 import type { Messages } from './i18n/types'
-import { toEnglishDigits } from './marathiDigits'
+import { toEnglishDigits } from './gujaratiDigits'
+import { toEnglishDigits as toEnglishDigitsFromDevanagari } from './marathiDigits'
 import { normaliseName } from './utils'
 
 export const MAX_NAME_LENGTH = 120
@@ -64,11 +65,11 @@ export interface ValidationResult {
 
 /**
  * Normalises what an Indian patient actually types into a bare 10-digit number.
- * Accepts "98765 43210", "+91 9876543210", "09876543210" and Devanagari
- * numerals, all of which become "9876543210".
+ * Accepts "98765 43210", "+91 9876543210", "09876543210", Devanagari numerals
+ * and Gujarati numerals, all of which become "9876543210".
  */
 export function normaliseMobile(raw: string): string | null {
-  let digits = toEnglishDigits(raw).replace(/\D/g, '')
+  let digits = toEnglishDigits(toEnglishDigitsFromDevanagari(raw)).replace(/\D/g, '')
 
   if (digits.length === 12 && digits.startsWith('91')) {
     digits = digits.slice(2)
@@ -138,8 +139,8 @@ export function validateRegistrationFields(input: RegistrationInput): FieldValid
  * reader's language.
  *
  * `messages` is passed in rather than imported so the validation rules stay
- * language-agnostic — they are the same in Marathi, Hindi and English, and only
- * the sentences differ.
+ * language-agnostic — they are the same in Marathi, Gujarati and English, and
+ * only the sentences differ.
  */
 export function validateRegistration(
   input: RegistrationInput,

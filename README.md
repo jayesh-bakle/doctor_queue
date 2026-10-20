@@ -1,9 +1,9 @@
-# रुग्ण रांग व्यवस्थापन प्रणाली
+# Patient Queue Management System
 
 **Doctor Queue System** — a web-based patient token and queue management system for a small
 hospital or clinic in Maharashtra.
 
-Patients scan a QR code at reception, register from their own phone browser in Marathi, and get a
+Patients scan a QR code at reception, register from their own phone browser, and get a
 token number they can check at any time. Reception calls the next patient with one click. A TV in
 the waiting area shows the current token, large enough to read from across the room.
 
@@ -21,9 +21,9 @@ This system replaces that register with three connected screens over one dataset
 
 | Interface | Device | Login | Language |
 |---|---|---|---|
-| **Patient** | Their own phone, via QR code | None | Marathi |
-| **Reception / staff** | Counter computer or tablet | Yes | Marathi |
-| **TV display** | Monitor or TV in the waiting area | None | Marathi |
+| **Patient** | Their own phone, via QR code | None | English (default), Marathi or Gujarati |
+| **Reception / staff** | Counter computer or tablet | Yes | English (default), Marathi or Gujarati |
+| **TV display** | Monitor or TV in the waiting area | None | English (default), Marathi or Gujarati |
 
 **Scope: queue management only.** This is deliberately *not* an EMR. The database has nowhere to
 record a diagnosis, a prescription, a test result or a medical history — and that is a design
@@ -44,22 +44,22 @@ same number, and the client never computes a token itself.
 
 ## 2. Features
 
-### Patient (no login, Marathi)
+### Patient (no login, language switcher on screen)
 
 - **Scan a QR code and register** — four questions: name, mobile (optional), doctor, and whether
   this is a first visit or a follow-up. Nothing clinical is ever asked for.
-- **Get a token in Marathi numerals** — `००१`, `०२७`, `१००`.
+- **Get a token in the language's numerals** — `001`/`००१` `૦૦૧`, `027`/`०२७` `૦૨૭`.
 - **A private status page** at `/token/<public-id>`, updatable, bookmarkable, refreshable. It shows
   the token, the doctor, the room, how many patients are genuinely still ahead, a plain-language
   sentence describing the situation, and a rough wait estimate.
 - **Live updates** over Supabase Realtime, with a 30-second polling safety net so a dropped socket
   never leaves a patient staring at a stale number.
-- **Spoken announcements** in Marathi via the Web Speech API, with a toggle ("आवाज सुरू" /
+- **Spoken announcements** in the chosen language via the Web Speech API, with a toggle ("आवाज सुरू" /
   "आवाज बंद"). The app works completely when speech is unavailable or muted.
 - **Designed for a phone**: large touch targets, one-handed use, sensible keyboard hints, and
   screen-reader labels throughout.
 
-### Reception / staff (authenticated, Marathi)
+### Reception / staff (authenticated, language switcher on screen)
 
 - **The whole queue at a glance**, colour-coded by status — never by colour alone.
 - **One-click "पुढील रुग्ण बोलवा"** to call the next patient; the previous consultation is closed
@@ -117,7 +117,7 @@ queue-management API.
 
 ```
 Doctor-queue-system/
-├── index.html                     Marathi lang attribute, Devanagari font preconnect
+├── index.html                     English lang attribute, Indic font preconnect
 ├── package.json
 ├── vite.config.ts                 React + Tailwind plugins, Vitest config
 ├── vercel.json                    SPA rewrite + security headers
@@ -155,8 +155,8 @@ Doctor-queue-system/
 │   │   ├── marathiDigits.ts       toMarathiDigits, formatToken, count labels
 │   │   ├── queue.ts               Pure queue rules — the current token, who is ahead
 │   │   ├── validation.ts          Registration rules, mobile normalisation
-│   │   ├── errors.ts              Error codes mapped to Marathi sentences
-│   │   ├── speech.ts              Marathi speech synthesis, with a fallback chain
+│   │   ├── errors.ts              Error codes mapped to sentences per language
+│   │   ├── speech.ts              Web Speech announcements per language
 │   │   ├── utils.ts               Dates in the hospital timezone, class names
 │   │   ├── env.ts                 Environment variables, read once
 │   │   ├── supabase.ts            The Supabase client
@@ -188,7 +188,7 @@ Doctor-queue-system/
     ├── marathiDigits.test.ts      Numeral conversion and token formatting
     ├── queue.test.ts              Current token, patients ahead, skipped patients
     ├── validation.test.ts         Registration rules
-    ├── errors.test.ts             Marathi messages, no leaked database errors
+    ├── errors.test.ts             Error messages, no leaked database errors
     ├── demoQueue.test.ts          End-to-end against the demo backend
     ├── sheetRows.test.ts          Google Sheets row formatting and timezone conversion
     ├── helpers/browserEnv.ts      Browser globals for the demo tests
@@ -569,7 +569,7 @@ mapping automatically.
 
 **If sign-in succeeds but the dashboard is empty**, Step 2 was skipped. The account is valid but
 attached to no hospital, so row level security correctly shows it nothing. The login screen says so
-in Marathi: "आपले खाते रुग्णालयाशी जोडलेले नाही."
+in English: "Your account is not linked to a hospital."
 
 **Removing a staff member:** delete the user in **Authentication → Users**. The `staff_users` row
 goes with it, and every request they had in flight stops working.
@@ -701,7 +701,7 @@ printing patient data.
 | The TV never updates | The device dropped its websocket, or the display URL names the wrong doctor | Reload the tab; check the doctor id against `/qr`. Patient pages also poll every 30 seconds as a safety net |
 | "सध्या रांग उपलब्ध नाही." on `/register` | No active doctors, or `seed.sql` was never run | Add a doctor at `/staff/doctors`, or run `supabase/seed.sql` |
 | A patient's token page is blank | The `public_id` in the URL is wrong or was never issued | Ask reception for the link; token pages are not guessable by design |
-| No Marathi voice | The device has no `mr-IN` voice installed | The app falls back to Hindi, then to any available voice, then to silence — everything else still works. On Android, add Marathi under Settings → Text-to-speech |
+| No Marathi or Gujarati voice | The device has no `mr-IN`/`gu-IN` voice installed | The announcement is still spoken, but with the device's default voice, so the pronunciation may be wrong. On Android, add the language under Settings → Text-to-speech |
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
@@ -750,9 +750,10 @@ codebase and must never be added to a `VITE_`-prefixed variable. The database pa
 password column anywhere in the schema, and no password is ever written to the application's
 database.
 
-**Errors are shown in Marathi, never raw.** A duplicate-key violation, a constraint name or a stack
-trace tells a patient nothing useful and tells an attacker quite a lot. Users see a Marathi
-sentence; the technical detail goes to the browser console for whoever is debugging.
+**Errors are shown in the reader's language, never raw.** A duplicate-key violation, a constraint
+name or a stack trace tells a patient nothing useful and tells an attacker quite a lot. Users see a
+sentence in the chosen language; the technical detail goes to the browser console for whoever is
+debugging.
 
 **Mobile numbers are for reception only.** They are never displayed on the TV, never included in
 `get_public_queue()`, and visible only to signed-in staff of that hospital. Supplying one is
@@ -830,8 +831,9 @@ needs its own sheet, deploy a second copy of the function with a different `HOSP
 ## Scope
 
 **Built (MVP):** queue and token management, patient self-registration by QR, live token status,
-staff dashboard, doctor management, hospital settings, TV display, Marathi UI and numerals, Marathi
-speech with a toggle, QR poster generation, staff authentication, realtime updates, demo mode,
+staff dashboard, doctor management, hospital settings, TV display, English / Marathi / Gujarati UI
+with per-language numerals, speech with a toggle, QR poster generation, staff authentication,
+realtime updates, demo mode,
 several hospitals on one deployment (section 17), tests.
 
 **Not built, deliberately:** payments, billing, pharmacy, laboratory, EMR, appointment calendars,

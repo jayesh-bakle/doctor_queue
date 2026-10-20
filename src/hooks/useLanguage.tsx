@@ -44,9 +44,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   // Tell the browser which language is on screen, so a screen reader uses the
   // right voice and the browser stops offering to translate the page itself.
+  // The tab title follows too: `index.html` ships an English title (it is served
+  // before any language is known), and this replaces it once the choice loads.
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = language
+      document.title = getMessages(language).ui.common.queueSystem
     }
   }, [language])
 

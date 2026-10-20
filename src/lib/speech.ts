@@ -3,13 +3,13 @@
  *
  * Two things this module refuses to do, both deliberate:
  *
- * 1. It never makes the app depend on speech. Devanagari TTS is unavailable on
- *    many Android and most desktop browsers, so every function degrades to a
- *    silent no-op and the queue keeps working (spec §13).
+ * 1. It never makes the app depend on speech. Indic-script TTS (Devanagari and
+ *    Gujarati) is unavailable on many Android and most desktop browsers, so
+ *    every function degrades to a silent no-op and the queue keeps working
+ *    (spec §13).
  *
  * 2. It never pretends a voice it wanted was used. When no voice exists for the
- *    chosen language it falls back to another one and reports which voice it
- *    actually used, so Settings can say so out loud.
+ *    chosen language it reports that, rather than substituting an unrelated one.
  *
  * The announcement follows the language on screen. A Marathi sentence read aloud
  * to a waiting room that has been switched to English would be worse than
@@ -23,23 +23,22 @@ const STORAGE_KEY = 'queue.announcementEnabled'
 /**
  * Preferred voices per language, best first.
  *
- * `mr` lists Hindi after Marathi because Hindi voices read Devanagari correctly
- * and pronounce token numbers acceptably — a useful approximation when the
- * device has no Marathi voice at all. `hi` does not list Marathi, and `en` lists
- * neither: those fallbacks would read a Latin-script sentence in the wrong
- * language rather than approximately the right one.
+ * Each language lists only voices written in its own script. There is no
+ * cross-script fallback: a Hindi voice reading Marathi, or an English voice
+ * reading Gujarati, would mispronounce the sentence rather than approximate it,
+ * so a missing voice is reported instead of papered over.
  */
 const VOICE_PREFERENCE: Record<Language, readonly string[]> = {
-  mr: ['mr-IN', 'mr', 'hi-IN', 'hi'],
-  hi: ['hi-IN', 'hi'],
   en: ['en-IN', 'en-GB', 'en-US', 'en'],
+  mr: ['mr-IN', 'mr'],
+  gu: ['gu-IN', 'gu'],
 }
 
 /** The BCP-47 tag used when no voice matched at all. */
 const NEUTRAL_TAG: Record<Language, string> = {
-  mr: 'mr-IN',
-  hi: 'hi-IN',
   en: 'en-IN',
+  mr: 'mr-IN',
+  gu: 'gu-IN',
 }
 
 export interface SpeechStatus {
@@ -115,7 +114,7 @@ function pickVoice(language: Language): SpeechSynthesisVoice | null {
 }
 
 /** Describes what the announcement will actually sound like on this device. */
-export function getSpeechStatus(language: Language = 'mr'): SpeechStatus {
+export function getSpeechStatus(language: Language = 'en'): SpeechStatus {
   if (!isSpeechSupported()) {
     return { supported: false, voiceLang: null, voiceName: null, usingFallback: false }
   }
@@ -215,7 +214,7 @@ export function speak(text: string, options?: { force?: boolean; language?: Lang
   if (!options?.force && !isAnnouncementEnabled()) return false
   if (!text.trim()) return false
 
-  const language = options?.language ?? 'mr'
+  const language = options?.language ?? 'en'
 
   const s = synth()
   if (!s) return false

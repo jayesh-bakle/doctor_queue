@@ -21,7 +21,7 @@ const marathi = getMessages('mr')
  *
  * The message text no longer lives in this module — it lives in the locale
  * modules — so these tests pass `getMessages('mr')` in explicitly. That is the
- * point of the split: the same failure renders as Marathi, Hindi or English
+ * point of the split: the same failure renders as Marathi, Gujarati or English
  * depending on what the caller hands over, and the code is what stays stable.
  */
 describe('toUserMessage', () => {
@@ -195,7 +195,7 @@ describe('the Marathi message catalogue', () => {
 })
 
 describe('the default language', () => {
-  it('is Marathi, the language the clinic runs on', () => {
-    expect(DEFAULT_LANGUAGE).toBe('mr')
+  it('is English, the language the interface opens in', () => {
+    expect(DEFAULT_LANGUAGE).toBe('en')
   })
 })

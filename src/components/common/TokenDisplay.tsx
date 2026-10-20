@@ -36,9 +36,10 @@ interface TokenDisplayProps {
  * A token number, rendered the only way a patient should ever see it: zero-padded
  * to three digits, with tabular figures so the width never jumps as it counts up.
  *
- * The numerals follow the interface language — `०२७` in Marathi and Hindi, `027`
- * in English (spec §8). The padding does not: the token is always three digits
- * wide, so it occupies the same space whichever language is on screen.
+ * The numerals follow the interface language — `०२७` in Marathi, `૦૨૭` in
+ * Gujarati, `027` in English (spec §8). The padding does not: the token is always
+ * three digits wide, so it occupies the same space whichever language is on
+ * screen.
  *
  * When the number changes the component briefly scales and brightens. On a TV
  * that is the difference between a patient noticing their turn and missing it

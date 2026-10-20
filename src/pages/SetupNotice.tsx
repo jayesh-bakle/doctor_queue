@@ -11,7 +11,7 @@ export function SetupNotice() {
     <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4 py-10">
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-extrabold text-slate-900">
-          सेटअप पूर्ण झालेला नाही
+          Setup is not complete
         </h1>
         <p className="mt-2 text-base text-slate-600">
           The application needs a Supabase project, or demo mode to run without one. Create a{' '}

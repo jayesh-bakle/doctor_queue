@@ -12,7 +12,7 @@ interface LanguageSwitcherProps {
 }
 
 /**
- * Marathi / हिंदी / English, switchable in place (spec §10).
+ * English / मराठी / ગુજરાતી, switchable in place (spec §10).
  *
  * Labels are **autonyms** — each language written in its own script — and come
  * from `LANGUAGE_LABELS` rather than the message catalogue on purpose. A
