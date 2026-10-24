@@ -11,16 +11,19 @@ import type {
   CallNextResult,
   DoctorRow,
   HospitalRow,
+  PublicHospitalQueueRow,
   PublicQueueResult,
   QueueEntryRow,
   QueueStatus,
   RecallResult,
   RegisterPatientResult,
   StaffUserRow,
+  TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
-import { AppError, logTechnicalError, toAppError } from '../errors'
+import { isTurnstileEnabled } from '../env'
+import { AppError, isKnownErrorCode, logTechnicalError, toAppError } from '../errors'
 import { getSupabase } from '../supabase'
 import {
   toDoctorOption,
@@ -197,16 +200,50 @@ export const supabaseDataSource: QueueDataSource = {
   // ---- patient ----------------------------------------------------------
 
   async registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult> {
-    const rows = await callRpc<RegisterPatientResult[]>(
-      'register_patient',
-      {
-        p_doctor_id: input.doctorId,
-        p_patient_name: input.patientName,
-        p_mobile: input.mobile,
-        p_patient_type: input.patientType,
-      },
-      'registerPatient',
-    )
+    const args = {
+      p_doctor_id: input.doctorId,
+      p_patient_name: input.patientName,
+      p_mobile: input.mobile,
+      p_patient_type: input.patientType,
+    }
+
+    // With Turnstile configured, registration goes through the Edge Function:
+    // it verifies the captcha with the secret key, then calls the RPC with the
+    // service role. The anon role is no longer granted `register_patient`, so
+    // spamming the RPC directly is not possible.
+    if (isTurnstileEnabled) {
+      const supabase = getSupabase()
+      const { data, error } = await supabase.functions.invoke('register-patient', {
+        body: { ...args, turnstileToken: input.turnstileToken ?? '' },
+      })
+
+      if (error) {
+        logTechnicalError('registerPatient — edge function', error)
+
+        // The function returns `{ error: 'QUEUE_FULL' }` with a 4xx status;
+        // `functions.invoke` turns that into an error, so read it back out.
+        const context = (error as { context?: Response }).context
+        let code: string | null = null
+        if (context) {
+          try {
+            const body = (await context.clone().json()) as { error?: unknown }
+            code = typeof body.error === 'string' ? body.error : null
+          } catch {
+            // Non-JSON error body — fall through to the generic mapping.
+          }
+        }
+
+        if (isKnownErrorCode(code)) throw new AppError(code, { cause: error })
+        throw toAppError(error)
+      }
+
+      if (!data || typeof (data as { public_id?: unknown }).public_id !== 'string') {
+        throw new AppError('UNKNOWN')
+      }
+      return data as RegisterPatientResult
+    }
+
+    const rows = await callRpc<RegisterPatientResult[]>('register_patient', args, 'registerPatient')
 
     const row = firstRow(rows)
     if (!row) throw new AppError('UNKNOWN')
@@ -218,9 +255,27 @@ export const supabaseDataSource: QueueDataSource = {
     return firstRow(rows)
   },
 
+  async getTokenPulse(publicId: string): Promise<TokenPulseResult | null> {
+    const rows = await callRpc<TokenPulseResult[]>(
+      'get_token_pulse',
+      { p_public_id: publicId },
+      'getTokenPulse',
+    )
+    return firstRow(rows)
+  },
+
   async getPublicQueue(doctorId: string): Promise<PublicQueueResult | null> {
     const rows = await callRpc<PublicQueueResult[]>('get_public_queue', { p_doctor_id: doctorId }, 'getPublicQueue')
     return firstRow(rows)
+  },
+
+  async getPublicHospitalQueue(hospitalId: string): Promise<PublicHospitalQueueRow[]> {
+    const rows = await callRpc<PublicHospitalQueueRow[]>(
+      'get_public_hospital_queue',
+      { p_hospital_id: hospitalId },
+      'getPublicHospitalQueue',
+    )
+    return Array.isArray(rows) ? rows : []
   },
 
   // ---- staff ------------------------------------------------------------
@@ -262,14 +317,33 @@ export const supabaseDataSource: QueueDataSource = {
 
   // ---- queue ------------------------------------------------------------
 
-  async listQueue(doctorId: string, queueDate: string): Promise<QueueEntryView[]> {
+  async listQueue(
+    doctorId: string,
+    queueDate: string,
+    options?: { since?: string },
+  ): Promise<QueueEntryView[]> {
     const supabase = getSupabase()
 
-    const { data, error } = await supabase
+    // Explicit columns rather than `*`: export bookkeeping has no business
+    // reaching the browser, and every byte avoided counts against free egress.
+    let query = supabase
       .from('queue_entries')
-      .select('*')
+      .select(
+        'id, public_id, hospital_id, doctor_id, queue_date, token_number, ' +
+          'patient_name, mobile, patient_type, status, created_at, called_at, ' +
+          'completed_at, updated_at',
+      )
       .eq('doctor_id', doctorId)
       .eq('queue_date', queueDate)
+
+    // A live event usually changes one row. `gte` rather than `gt` so two rows
+    // sharing a timestamp cannot be missed; merging by id makes the duplicate
+    // harmless.
+    if (options?.since) {
+      query = query.gte('updated_at', options.since)
+    }
+
+    const { data, error } = await query
       .order('token_number', { ascending: true })
       .returns<QueueEntryRow[]>()
 
@@ -407,6 +481,45 @@ export const supabaseDataSource: QueueDataSource = {
       .subscribe((status) => {
         // After a reconnect the client has missed whatever happened while it was
         // away, so re-read once rather than waiting for the next event.
+        if (status === 'SUBSCRIBED') onChange()
+      })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  },
+
+  subscribeToHospital(hospitalId: string, onChange: () => void): () => void {
+    const supabase = getSupabase()
+
+    const channel = supabase
+      .channel(`hospital:${hospitalId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'queue_events',
+          filter: `hospital_id=eq.${hospitalId}`,
+        },
+        () => onChange(),
+      )
+      // The TV's doctor list comes from `get_public_hospital_queue()`. A
+      // queue-event subscription alone would leave the screen stale when
+      // reception adds, edits, reorders or deactivates a doctor. This tiny
+      // PII-free table is written by a trigger on `doctors`; receiving it only
+      // means "refetch the active-doctor list".
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'hospital_changes',
+          filter: `hospital_id=eq.${hospitalId}`,
+        },
+        () => onChange(),
+      )
+      .subscribe((status) => {
         if (status === 'SUBSCRIBED') onChange()
       })
 

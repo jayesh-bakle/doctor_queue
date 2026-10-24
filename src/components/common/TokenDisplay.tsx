@@ -3,12 +3,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 
-type TokenSize = 'md' | 'lg' | 'xl' | 'display'
+type TokenSize = 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'display'
 
 const SIZE_CLASSES: Record<TokenSize, string> = {
+  sm: 'text-3xl',
   md: 'text-5xl',
   lg: 'text-7xl',
   xl: 'text-8xl sm:text-9xl',
+  // Sized by viewport height so the same card remains legible at 720p and
+  // 1080p without making the page overflow either screen.
+  card: 'text-[clamp(3.5rem,9vh,7rem)]',
   // Sized in viewport units so the number fills a 1080p TV from across the
   // room, and still fits a laptop when the same page is opened there.
   display: 'text-[clamp(5rem,20vw,17rem)]',

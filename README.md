@@ -52,8 +52,9 @@ same number, and the client never computes a token itself.
 - **A private status page** at `/token/<public-id>`, updatable, bookmarkable, refreshable. It shows
   the token, the doctor, the room, how many patients are genuinely still ahead, a plain-language
   sentence describing the situation, and a rough wait estimate.
-- **Live updates** over Supabase Realtime, with a 30-second polling safety net so a dropped socket
-  never leaves a patient staring at a stale number.
+- **Live updates** by adaptive polling: every 15 seconds while the patient is near the front, up to
+  45 seconds when far away, paused entirely while the tab is hidden. A tiny payload keyed by the
+  unguessable token id, so a locked phone costs nothing.
 - **Spoken announcements** in the chosen language via the Web Speech API, with a toggle ("आवाज सुरू" /
   "आवाज बंद"). The app works completely when speech is unavailable or muted.
 - **Designed for a phone**: large touch targets, one-handed use, sensible keyboard hints, and
@@ -80,6 +81,13 @@ same number, and the client never computes a token itself.
   room and the queue state — this is enforced by the data layer, not by remembering to check.
 - Built for a screen across a room: very large numerals, tabular figures that do not jitter, and a
   brief flash when the number changes.
+- One to six doctors fit on one page. Above that the screen rotates in pages of five every 12
+  seconds, with a page indicator, a persistent **Now calling** banner and a 30-second highlight on
+  the called doctor's card.
+- The page count follows the **active doctor list**, not a fixed setting. Adding, reordering or
+  deactivating a doctor at reception updates the TV immediately; crossing six doctors starts
+  rotation, dropping back to six stops it.
+- Sized for both 720p and 1080p waiting-room screens.
 - Read-only. It cannot change anything.
 
 ### Also included
@@ -136,9 +144,14 @@ Doctor-queue-system/
 │   │   ├── 003_queue_functions.sql RPCs, the advisory lock, the queue_events trigger
 │   │   ├── 004_fix_doctor_delete.sql Guards the trigger during a doctor cascade delete
 │   │   ├── 005_sheet_export.sql   `exported_at` marker for the Google Sheets export
-│   │   └── 006_multi_hospital_support.sql Hospital-scoped staff reads, timezone in the public RPCs
+│   │   ├── 006_multi_hospital_support.sql Hospital-scoped staff reads, timezone in the public RPCs
+│   │   ├── 007_quota_optimization.sql Pulse/TV RPCs, statement triggers, retention, Sheet mappings
+│   │   ├── 008_daily_token_cap.sql Per-doctor daily ceiling and the anon-grant lockdown note
+│   │   ├── 009_hospital_changes.sql Doctor-change signal so the TV updates when reception edits doctors
+│   │   └── 010_big_hospital_hardening.sql 2,000/day cap, export anti-join, export index
 │   ├── functions/
-│   │   └── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
+│   │   ├── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
+│   │   └── register-patient/      Turnstile check, then register_patient() with the service role
 │   ├── config.toml                Supabase CLI config for the function
 │   └── seed.sql                   Sample hospital and two doctors
 │
@@ -167,7 +180,8 @@ Doctor-queue-system/
 │   │       └── index.ts           Picks one based on VITE_DEMO_MODE
 │   │
 │   ├── hooks/                     useQueue, useRealtimeQueue, useTokenStatus,
-│   │                              usePublicQueue, useDoctors, useHospital,
+│   │                              usePublicHospitalQueue, useRealtimeHospital,
+│   │                              usePageRotation, useDoctors, useHospital,
 │   │                              useHospitalId, useStaffAuth, useOnlineStatus
 │   │
 │   ├── layouts/                   PatientLayout, StaffLayout, DisplayLayout
@@ -177,6 +191,7 @@ Doctor-queue-system/
 │   │   │                          ConnectionIndicator, AnnouncementToggle,
 │   │   │                          DemoBanner, ErrorBoundary
 │   │   ├── patient/               RegistrationForm, TokenDetailsCard, SituationCard
+│   │   ├── display/               DoctorCard, NowCallingBanner
 │   │   └── staff/                 QueueTable, DoctorForm
 │   │
 │   └── pages/                     HomePage, RegisterPage, TokenStatusPage,
@@ -190,7 +205,9 @@ Doctor-queue-system/
     ├── validation.test.ts         Registration rules
     ├── errors.test.ts             Error messages, no leaked database errors
     ├── demoQueue.test.ts          End-to-end against the demo backend
-    ├── sheetRows.test.ts          Google Sheets row formatting and timezone conversion
+    ├── displayLayout.test.ts      TV pagination, grid classes and page rotation
+    ├── polling.test.ts            Adaptive patient polling delays
+    ├── sheetRows.test.ts          Google Sheets row formatting, timezone conversion, monthly tabs
     ├── helpers/browserEnv.ts      Browser globals for the demo tests
     └── sql/queue.test.ts          Real concurrency against Postgres (skips without a DB URL)
 ```
@@ -259,7 +276,7 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Six migration files, run **in order**. Together they are idempotent, so re-running them is safe
+Eight migration files, run **in order**. Together they are idempotent, so re-running them is safe
 and nothing is ever dropped.
 
 | File | What it creates |
@@ -270,6 +287,10 @@ and nothing is ever dropped.
 | `004_fix_doctor_delete.sql` | Guards the `queue_events` trigger so deleting a doctor who has queue history no longer fails with a foreign-key error during the cascade |
 | `005_sheet_export.sql` | Adds `queue_entries.exported_at` and its partial index, which the Google Sheets export uses to copy each finished row exactly once (section 14) |
 | `006_multi_hospital_support.sql` | Multi-tenant support: staff may read only their own hospital's row, and the public RPCs now return `hospital_timezone` so the TV and token pages use the clinic's clock |
+| `007_quota_optimization.sql` | Free-tier quota work: `updated_at` + indexes, single-scan snapshot, `get_token_pulse()` and `get_public_hospital_queue()`, statement-level `queue_events` triggers, per-hospital Sheet mappings and export marks, retention pruning scheduled with pg_cron |
+| `008_daily_token_cap.sql` | Hard daily ceiling per doctor (`hospitals.max_daily_tokens`, default 2,000) raising `QUEUE_FULL`; also documents the anon grant to revoke once the `register-patient` function is live |
+| `009_hospital_changes.sql` | A small, public, PII-free signal table plus a trigger on `doctors`; the shared TV refetches its active-doctor list immediately when reception adds, edits, reorders or deactivates a doctor |
+| `010_big_hospital_hardening.sql` | Raises the daily cap for existing clinics, adds `get_unexported_entries()` (a bounded anti-join for the Sheet export), and indexes the pending-export scan; pair it with the updated `daily-sheet-export` function, which writes monthly tabs |
 
 ### Running them
 
@@ -277,7 +298,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, then `006_multi_hospital_support.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, `006_multi_hospital_support.sql`, `007_quota_optimization.sql`, `008_daily_token_cap.sql`, `009_hospital_changes.sql`, then `010_big_hospital_hardening.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 To wipe an existing database and rebuild it with **one login per hospital**, follow
@@ -318,8 +339,9 @@ that ships in the browser bundle can read patient records directly.
 
 There is no table for diagnoses, prescriptions, test results, allergies, appointments, invoices or
 insurance. `queue_entries` holds a name, an optional mobile, a token number, a status and two
-timestamps. `queue_events` — the table the TV reads — has **no name or mobile column at all**, so
-no query and no future feature can leak a patient's name onto the waiting-room screen through it.
+timestamps. `queue_events` — the queue feed the TV reads — has **no name or mobile column at all**,
+so no query and no future feature can leak a patient's name onto the waiting-room screen through
+it. The TV's other realtime input, `hospital_changes`, contains only a hospital id and a timestamp.
 
 ---
 
@@ -332,6 +354,7 @@ All variables are read once, at startup, in `src/lib/env.ts`.
 | `VITE_SUPABASE_URL` | Yes, unless demo mode | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes, unless demo mode | The **publishable/anon** key. Safe in the browser *because* RLS is on |
 | `VITE_DEMO_MODE` | No | `true` runs everything against an in-browser mock. Leave `false` in production |
+| `VITE_TURNSTILE_SITE_KEY` | Production | Cloudflare Turnstile site key. Empty disables the widget for demo/local use |
 | `SUPABASE_DB_URL` | No | **Server-side only**, for `npm run test:sql`. Never prefix with `VITE_` |
 
 Notes:
@@ -344,6 +367,30 @@ Notes:
 - `.env` is in `.gitignore`. Do not commit it. `.env.example` is the template, and it is committed.
 - If neither Supabase credentials nor demo mode are configured, the app shows a setup screen with
   these instructions rather than a network error.
+
+### Turning on the registration abuse check
+
+Registration is the only write a patient can make, so it is the one to protect. Turnstile is
+optional in development and **strongly recommended in production**; the per-doctor daily cap
+(`hospitals.max_daily_tokens`, default 2,000) is the backstop either way.
+
+1. Create a Turnstile widget at <https://dash.cloudflare.com> → **Turnstile** and note the site and
+   secret keys.
+2. Put the site key in `VITE_TURNSTILE_SITE_KEY` and redeploy the frontend.
+3. Deploy the function and give it the secret:
+   ```bash
+   npx supabase secrets set TURNSTILE_SECRET_KEY="<secret-key>"
+   npx supabase functions deploy register-patient
+   ```
+4. Only after step 3 succeeds, close the public RPC (the statement is in
+   `008_daily_token_cap.sql`):
+   ```sql
+   revoke execute on function register_patient(uuid, text, text, text) from anon;
+   ```
+   Run the revoke before the function is live and patients cannot register at all.
+
+Demo mode and a local `.env` with no site key skip the widget and call the RPC directly, which is
+why the revoke in step 4 must be the last action.
 
 ---
 
@@ -370,7 +417,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. The six migrations and `seed.sql` must already have been run.
+`npm run dev`. All ten migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -381,8 +428,8 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=fals
    on your own token page showing `००१`.
 3. Register again — `००२`. Change the doctor and register — that doctor's queue also starts at
    `००१`.
-4. Open `/display/<doctorId>` in a **second window** (the QR page lists the URLs). Sign in to
-   reception at `/staff/login` in a third.
+4. Open `/display/h/<hospitalId>` in a **second window** (the QR page shows the URL). One screen
+   shows every active doctor. Sign in to reception at `/staff/login` in a third.
 5. Click **पुढील रुग्ण बोलवा**. The TV updates without a refresh, and the patient's page changes to
    "आता आपला क्रमांक आहे."
 6. Skip a patient and watch the remaining patients' "आपल्यापुढे" counts correct themselves.
@@ -416,8 +463,9 @@ make, so it is verified where it actually lives — in the database.
 3. Vercel detects Vite automatically. Confirm:
    - **Build command:** `npm run build`
    - **Output directory:** `dist`
-4. Under **Environment Variables**, add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and
-   `VITE_DEMO_MODE` (`false`). Add them to Production, Preview and Development.
+4. Under **Environment Variables**, add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+   `VITE_DEMO_MODE` (`false`) and, in production, `VITE_TURNSTILE_SITE_KEY`. Add them to Production,
+   Preview and Development.
    > Do **not** add `SUPABASE_DB_URL` here. Vercel environment variables are available at build
    > time, and a `VITE_`-prefixed mistake would put the database password in the browser bundle.
 5. **Deploy.**
@@ -451,9 +499,10 @@ is the cheaper host for a clinic that is paying you. The build is identical — 
    - **Framework preset:** Vite
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
-4. Under **Settings → Environment variables**, add the same three variables as Vercel:
-   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DEMO_MODE=false`. Add them for both
-   Production and Preview. Do not add `SUPABASE_DB_URL`.
+4. Under **Settings → Environment variables**, add the same variables as Vercel:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DEMO_MODE=false` and, in production,
+   `VITE_TURNSTILE_SITE_KEY`. Add them for both Production and Preview. Do not add
+   `SUPABASE_DB_URL`.
 5. **Save and Deploy.**
 6. Add a custom domain under **Custom domains**, and update Supabase **Authentication → URL
    Configuration** to that domain.
@@ -502,13 +551,16 @@ computer and register them there; the queue is identical either way.
 
 ## 12. Opening the TV display
 
-Each doctor has their own display URL:
+Each clinic has one shared display URL:
 
 ```
-https://your-domain/display/<doctor-id>
+https://your-domain/display/h/<hospital-id>
 ```
 
-The `/qr` page lists the URL for every doctor — copy it, or open it directly on the TV's browser.
+It shows every active doctor, so a clinic with six doctors needs one screen, not six. With seven or
+more doctors it rotates through pages of five every 12 seconds; the **Now calling** banner stays
+visible even when the called doctor is on another page. The `/qr` page shows the URL with a copy
+button — open it on the TV's browser.
 
 **Setting it up**
 
@@ -529,8 +581,13 @@ The `/qr` page lists the URL for every doctor — copy it, or open it directly o
   while it is on duty, and disable any screensaver.
 - The clock is rendered in the **hospital's** timezone from `/staff/settings`, not the TV's, so a
   TV with a wrong timezone still shows the right time.
-- The TV and every patient's phone subscribe to the same live feed, so a change reaches all of them
-  within about a second.
+- The TV subscribes to live queue changes; patient pages poll on their own adaptive timer. A queue
+  change reaches the TV within about a second. The TV also listens for doctor changes, so reception
+  can add or deactivate a doctor while the display is running.
+- The display re-reads the active-doctor list once a minute as a fallback if a websocket event is
+  missed; no manual refresh is needed.
+- The registration page uses one hospital-level poll every 30 seconds for all doctors, not one poll
+  per doctor, so adding doctors does not multiply a patient phone's requests.
 
 ---
 
@@ -580,7 +637,8 @@ goes with it, and every request they had in flight stops working.
 
 Every day's registrations are copied into a Google Sheet the clinic owns. The copy is made by a
 Supabase Edge Function, so it runs on the server whether or not anyone has the app open, and the
-credentials never reach the browser.
+credentials never reach the browser. The exporter writes **one tab per month** (`Queue 2026-10`),
+because a single tab's 10,000,000-cell limit is only about 14 months at 2,000 patients/day.
 
 Two schedules run:
 
@@ -593,7 +651,9 @@ The seven-day window is deliberate: a missed nightly run is fixed by the next on
 
 ### What the Sheet contains
 
-One tab (default `Queue`), with this header written automatically on the first run:
+One tab per month, named `<tab> YYYY-MM` from the `tab` prefix in `hospital_sheet_exports` (default
+prefix `Queue`, so October 2026 is `Queue 2026-10`). The tab is created automatically on the first
+export for that month, with this header written on the first run:
 
 | Date | Token | Doctor | Department | Room | Patient | Mobile | Type | Status | Registered | Called | Completed |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -601,17 +661,19 @@ One tab (default `Queue`), with this header written automatically on the first r
 Dates and times are in the hospital's timezone. Rows are ordered by date, then the doctor's configured
 order, then token. To get Excel, use **File → Download → Microsoft Excel (.xlsx)** in the Sheet.
 
-> This tab is generated. Do not hand-edit it — the nightly rewrite deletes the rows for the last seven
-> dates and writes them again. Put calculations or notes on a second tab instead.
+> These tabs are generated. Do not hand-edit them — the nightly rewrite deletes the rows for the last
+> seven dates and writes them again. Put calculations or notes on a separate tab.
 
 ### Setup
 
-**1. Run the migration.** `supabase/migrations/005_sheet_export.sql` adds the `exported_at` marker the
-function uses to avoid duplicates. Run it in the SQL editor like the others.
+**1. Run the migrations.** `007_quota_optimization.sql` creates the `hospital_sheet_exports` mapping
+and the `hospital_export_marks` table that replaces the old single `exported_at` column.
+`010_big_hospital_hardening.sql` adds `get_unexported_entries()`, the bounded anti-join the exporter
+now uses instead of downloading every export mark. Run both in the SQL editor like the others.
 
-**2. Create the Sheet.** Make a Google Sheet and rename its first tab to `Queue` (or choose another
-name and set `GOOGLE_SHEET_TAB` below). The Sheet ID is the long string in its URL:
-`https://docs.google.com/spreadsheets/d/`**`<THIS PART>`**`/edit`.
+**2. Create one Sheet per clinic.** Make a Google Sheet. You do not need to create the data tab:
+the function creates `Queue 2026-10` (or your chosen prefix) on the first export. The Sheet ID is
+the long string in its URL: `https://docs.google.com/spreadsheets/d/`**`<THIS PART>`**`/edit`.
 
 **3. Create a Google service account.**
 
@@ -622,11 +684,26 @@ name and set `GOOGLE_SHEET_TAB` below). The Sheet ID is the long string in its U
 4. Open the service account → **Keys → Add key → Create new key → JSON**. A file downloads.
 5. From that JSON, copy **`client_email`** and **`private_key`**.
 
-**4. Share the Sheet with the service account.** Open the Sheet → **Share** → paste the
+**4. Share each Sheet with the service account.** Open the Sheet → **Share** → paste the
 `client_email` (it looks like `queue-export@your-project.iam.gserviceaccount.com`) → set it to
 **Editor**. Without this, every write fails with `403`.
 
-**5. Deploy the function.** From the project root:
+**5. Map the clinic to its Sheet.** One row per clinic; disable a clinic by setting `enabled = false`
+instead of deleting its row, so its history is not pruned while exports are paused. The `tab` value
+is a prefix, not a single tab: `Queue` produces `Queue 2026-10`, `Queue 2026-11`, and so on. If you
+are upgrading a Sheet that already has a single `Queue` tab, leave it in place and optionally rename
+it to `Queue YYYY-MM`; old rows are already marked exported and will not be duplicated.
+
+```sql
+insert into hospital_sheet_exports (hospital_id, spreadsheet_id, tab)
+values ('11111111-1111-1111-1111-111111111111', '<spreadsheet-id>', 'Queue')
+on conflict (hospital_id) do update
+  set spreadsheet_id = excluded.spreadsheet_id,
+      tab = excluded.tab,
+      enabled = true;
+```
+
+**6. Deploy the function.** From the project root:
 
 ```bash
 npx supabase login
@@ -637,23 +714,21 @@ npx supabase functions deploy daily-sheet-export
 `verify_jwt = false` for this function is already set in `supabase/config.toml`; the function
 authenticates each call with `x-export-secret` instead, because cron has no user login.
 
-**6. Set the secrets.** Replace each value with your own. `EXPORT_SECRET` is a random password you
-invent — `openssl rand -hex 32` prints one.
+**7. Set the secrets.** Replace each value with your own. `EXPORT_SECRET` is a random password you
+invent — `openssl rand -hex 32` prints one. The spreadsheet is chosen per clinic from the database,
+so there is no `GOOGLE_SHEET_ID`/`HOSPITAL_ID` here.
 
 ```bash
 npx supabase secrets set \
   GOOGLE_SERVICE_ACCOUNT_EMAIL="queue-export@your-project.iam.gserviceaccount.com" \
   GOOGLE_PRIVATE_KEY="$(jq -r .private_key service-account.json)" \
-  GOOGLE_SHEET_ID="<spreadsheet-id>" \
-  GOOGLE_SHEET_TAB="Queue" \
-  EXPORT_SECRET="<random-secret>" \
-  HOSPITAL_ID="11111111-1111-1111-1111-111111111111"
+  EXPORT_SECRET="<random-secret>"
 ```
 
 `GOOGLE_PRIVATE_KEY` may also be pasted with literal `\n` sequences — the function converts them back
 to newlines. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically; do not set them.
 
-**7. Schedule it.** Supabase Dashboard → **Project → Cron → Create job**. Create two jobs, both
+**8. Schedule it.** Supabase Dashboard → **Project → Cron → Create job**. Create two jobs, both
 `POST` to `https://<your-project-ref>.supabase.co/functions/v1/daily-sheet-export` with the header
 `x-export-secret: <the secret from step 6>` and `content-type: application/json`:
 
@@ -665,7 +740,7 @@ to newlines. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automat
 `25 18 * * *` is 23:55 IST. Cron expressions in Supabase run in UTC; if the hospital timezone in
 Settings changes, adjust this by the offset.
 
-**8. Test it.**
+**9. Test it.**
 
 ```bash
 curl -sS -X POST "https://<your-project-ref>.supabase.co/functions/v1/daily-sheet-export" \
@@ -682,9 +757,12 @@ printing patient data.
 ### Notes
 
 - The function queries Supabase with the service-role key, which bypasses RLS. That key exists only as
-  a Supabase secret; it is never sent to a browser.
-- If the Google call fails, `exported_at` is left null and the next five-minute run retries the same
-  rows. The nightly rewrite is the final safety net.
+  a Supabase secret; it is never sent to a browser. `get_unexported_entries()` is executable only by
+  `service_role` because its rows contain patient names and mobile numbers.
+- Incremental runs return at most 5,000 unexported rows; the next run continues. The anti-join runs in
+  Postgres, so a busy hospital no longer downloads its entire export history every five minutes.
+- If the Google call fails, no `hospital_export_marks` row is written and the next five-minute run
+  retries the same rows. The nightly rewrite is the final safety net.
 - The Sheet holds names and mobile numbers. Share it only with clinic staff and the service account.
 - On Supabase Free the project pauses after 7 days of inactivity, which stops the export too.
 
@@ -698,14 +776,14 @@ printing patient data.
 | Sign-in works, dashboard is empty | The auth user has no `staff_users` row | Section 13, Step 2 |
 | "ईमेल किंवा पासवर्ड चुकीचा आहे." | Wrong password, or the user was never auto-confirmed | Check the password; re-create the user with **Auto Confirm User** ticked |
 | QR code leads to `localhost` | The poster was generated from a dev server | Generate it on the deployed domain, after setting the production URL in Vercel |
-| The TV never updates | The device dropped its websocket, or the display URL names the wrong doctor | Reload the tab; check the doctor id against `/qr`. Patient pages also poll every 30 seconds as a safety net |
+| The TV never updates | The device dropped its websocket, or the display URL names the wrong hospital | Reload the tab; check the hospital id against `/qr`. The display also refreshes once a minute, and patient pages poll on their own adaptive timer |
 | "सध्या रांग उपलब्ध नाही." on `/register` | No active doctors, or `seed.sql` was never run | Add a doctor at `/staff/doctors`, or run `supabase/seed.sql` |
 | A patient's token page is blank | The `public_id` in the URL is wrong or was never issued | Ask reception for the link; token pages are not guessable by design |
 | No Marathi or Gujarati voice | The device has no `mr-IN`/`gu-IN` voice installed | The announcement is still spoken, but with the device's default voice, so the pronunciation may be wrong. On Android, add the language under Settings → Text-to-speech |
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all six migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all ten migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.
@@ -783,8 +861,8 @@ three things working together:
 - **The URL** — each clinic's poster encodes `/h/<hospital-id>`, so a patient's scan identifies the
   clinic. `/register` (the pre-multi-clinic poster) still works while the database holds exactly one
   hospital; once there are two it shows "scan the QR code at reception again".
-- **The doctor** — a doctor belongs to one hospital, so `/token/<public-id>` and `/display/<doctor-id>`
-  need no hospital in the URL.
+- **The doctor** — a doctor belongs to one hospital, so `/token/<public-id>` needs no hospital in the
+  URL. The shared TV is `/display/h/<hospital-id>`: one screen for the whole clinic.
 - **The staff login URL** — each clinic's receptionist uses `/staff/login/<hospital-id>`, which shows
   that clinic's name and address before anyone signs in and refuses an account belonging to another
   clinic. `/staff/login` remains the generic address.
@@ -815,16 +893,16 @@ values ('<auth-user-id>', '<hospital-id>', 'रिसेप्शन', 'RECEPTIO
 ```
 
 Then sign in as that receptionist and open **QR कोड**: the poster is already encoded with the new
-hospital's URL, the TV links under it list only that clinic's doctors, and the reception login link
-for `/staff/login/<hospital-id>` is shown there with a copy button — share that link with the
+hospital's URL, the shared TV link `/display/h/<hospital-id>` is shown there with a copy button, and
+so is the reception login link for `/staff/login/<hospital-id>`. Share the login link with the
 clinic's receptionist.
 
 ### What stays shared
 
-The database, the deployment and the Google Sheet export. The export writes every hospital's rows
-into the same sheet, with the `Doctor` and `Room` columns making the clinic obvious; if one clinic
-needs its own sheet, deploy a second copy of the function with a different `HOSPITAL_ID` and
-`GOOGLE_SHEET_ID` (section 14).
+The database, the deployment and one Google service account. Each clinic still gets its **own
+private spreadsheet**, mapped in `hospital_sheet_exports`; `hospital_export_marks` records which
+rows each clinic has received. One function run loops over every enabled mapping and one clinic's
+broken Sheet does not stop the others (section 14).
 
 ---
 

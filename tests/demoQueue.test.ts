@@ -613,6 +613,25 @@ describe('realtime notifications', () => {
     expect(notified).toBe(0)
     unsubscribe()
   })
+
+  it('notifies the shared TV when reception adds, edits or removes a doctor', async () => {
+    let notified = 0
+    const unsubscribe = demoDataSource.subscribeToHospital(DEMO_HOSPITAL_ID, () => {
+      notified += 1
+    })
+
+    const created = await demoDataSource.createDoctor({
+      name: 'डॉ. नवीन',
+      department: 'त्वचारोग',
+      roomNumber: '3',
+      isActive: true,
+    })
+    await demoDataSource.updateDoctor(created.id, { roomNumber: '4' })
+    await demoDataSource.deleteDoctor(created.id)
+
+    expect(notified).toBeGreaterThanOrEqual(3)
+    unsubscribe()
+  })
 })
 
 describe('multi-hospital scoping', () => {
@@ -641,6 +660,53 @@ describe('multi-hospital scoping', () => {
     const queue = await demoDataSource.getPublicQueue(first)
 
     expect(queue?.hospital_timezone).toBe('Asia/Kolkata')
+  })
+})
+
+describe('patient pulse and shared TV payload', () => {
+  it('returns only the pulse fields, never the patient name or mobile', async () => {
+    const { first } = await twoDoctors(demoDataSource)
+    const created = await register(demoDataSource, first, 'संदीप जाधव', '9876543210')
+
+    const pulse = await demoDataSource.getTokenPulse(created.public_id)
+
+    expect(pulse?.token_number).toBe(created.token_number)
+    expect(pulse?.status).toBe('WAITING')
+    expect(pulse).not.toBeNull()
+    expect('patient_name' in pulse!).toBe(false)
+    expect('mobile' in pulse!).toBe(false)
+  })
+
+  it('returns null for an unknown public id', async () => {
+    expect(await demoDataSource.getTokenPulse('no-such-token')).toBeNull()
+  })
+
+  it('tracks the doctor current token after a call', async () => {
+    const { first } = await twoDoctors(demoDataSource)
+    const created = await register(demoDataSource, first)
+    await register(demoDataSource, first)
+
+    await demoDataSource.callNext(first)
+
+    const pulse = await demoDataSource.getTokenPulse(created.public_id)
+    expect(pulse?.current_token).toBe(1)
+    expect(pulse?.waiting_count).toBe(1)
+  })
+
+  it('returns one row per active doctor for the shared TV, with no patient data', async () => {
+    const { first } = await twoDoctors(demoDataSource)
+    await register(demoDataSource, first, 'संदीप जाधव', '9876543210')
+
+    const rows = await demoDataSource.getPublicHospitalQueue(DEMO_HOSPITAL_ID)
+
+    expect(rows.length).toBeGreaterThanOrEqual(2)
+    expect(rows[0]?.hospital_name).toBeTruthy()
+    expect('patient_name' in rows[0]!).toBe(false)
+    expect('mobile' in rows[0]!).toBe(false)
+  })
+
+  it('returns no rows for an unknown hospital id', async () => {
+    expect(await demoDataSource.getPublicHospitalQueue('99999999-9999-9999-9999-999999999999')).toEqual([])
   })
 })
 

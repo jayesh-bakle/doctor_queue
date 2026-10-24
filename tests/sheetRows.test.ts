@@ -4,6 +4,9 @@ import {
   SHEET_HEADER,
   formatDateInTimeZone,
   formatTime,
+  groupEntriesByMonth,
+  monthKey,
+  monthlyTab,
   recentDates,
   sortForSheet,
   toSheetRow,
@@ -72,6 +75,40 @@ describe('recentDates', () => {
       '2026-10-31',
       '2026-10-30',
     ])
+  })
+})
+
+describe('monthly tabs', () => {
+  it('takes the month from the queue date', () => {
+    expect(monthKey('2026-10-18')).toBe('2026-10')
+  })
+
+  it('names a monthly tab from the configured prefix', () => {
+    expect(monthlyTab('Queue', '2026-10')).toBe('Queue 2026-10')
+    expect(monthlyTab('  ', '2026-10')).toBe('Queue 2026-10')
+  })
+
+  it('sanitizes characters Google Sheets rejects and keeps the month', () => {
+    const tab = monthlyTab('Queue [A/B]:*?\\', '2026-10')
+    expect(tab.endsWith(' 2026-10')).toBe(true)
+    expect(tab).not.toMatch(/[\[\]*?\/\\:]/)
+    expect(tab.length).toBeLessThanOrEqual(100)
+  })
+
+  it('shortens a long prefix without cutting off the month', () => {
+    const tab = monthlyTab('x'.repeat(200), '2026-10')
+    expect(tab.length).toBe(100)
+    expect(tab.endsWith(' 2026-10')).toBe(true)
+  })
+
+  it('groups entries by month without reordering them', () => {
+    const groups = groupEntriesByMonth([
+      entry({ id: 'a', queueDate: '2026-09-30' }),
+      entry({ id: 'b', queueDate: '2026-10-01' }),
+      entry({ id: 'c', queueDate: '2026-10-02' }),
+    ])
+    expect([...groups.keys()]).toEqual(['2026-09', '2026-10'])
+    expect(groups.get('2026-10')?.map((item) => item.id)).toEqual(['b', 'c'])
   })
 })
 

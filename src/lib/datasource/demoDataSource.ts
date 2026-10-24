@@ -27,12 +27,14 @@ import type {
   DoctorRow,
   HospitalRow,
   PatientType,
+  PublicHospitalQueueRow,
   PublicQueueResult,
   QueueEntryRow,
   QueueStatus,
   RecallResult,
   RegisterPatientResult,
   StaffRole,
+  TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
@@ -101,6 +103,8 @@ function buildInitialHospital(): HospitalRow {
     announcement_enabled: true,
     display_message: 'Please wait for your token number to be called.',
     avg_consultation_minutes: 10,
+    retention_days: 90,
+    max_daily_tokens: 500,
     created_at: new Date().toISOString(),
   }
 }
@@ -281,6 +285,90 @@ function publicQueueFor(state: DemoState, doctorId: string): PublicQueueResult |
   }
 }
 
+function publicHospitalQueueFor(state: DemoState, hospitalId: string): PublicHospitalQueueRow[] {
+  if (state.hospital.id !== hospitalId) return []
+
+  const queueDate = currentQueueDate(state)
+  const doctors = state.doctors
+    .filter((d) => d.hospital_id === hospitalId && d.is_active)
+    .sort((a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name, 'en'))
+
+  // No active doctors: still return one row so the TV can show the hospital
+  // header and the "queue has not started" message, exactly like the SQL
+  // LEFT JOIN does.
+  if (doctors.length === 0) {
+    return [
+      {
+        hospital_id: state.hospital.id,
+        hospital_name: state.hospital.name,
+        hospital_address: state.hospital.address,
+        hospital_phone: state.hospital.phone,
+        hospital_timezone: state.hospital.timezone,
+        display_message: state.hospital.display_message,
+        announcement_enabled: state.hospital.announcement_enabled,
+        avg_consultation_minutes: state.hospital.avg_consultation_minutes,
+        queue_date: queueDate,
+        doctor_id: null,
+        doctor_name: null,
+        department: null,
+        room_number: null,
+        display_order: null,
+        current_token: null,
+        next_token: null,
+        waiting_count: null,
+        total_today: null,
+        updated_at: new Date().toISOString(),
+      },
+    ]
+  }
+
+  return doctors.map((doctor) => {
+    const entries = entriesForDoctor(state, doctor.id, queueDate)
+    const snapshot = deriveSnapshot(entries.map(toMinimalEntry))
+    return {
+      hospital_id: state.hospital.id,
+      hospital_name: state.hospital.name,
+      hospital_address: state.hospital.address,
+      hospital_phone: state.hospital.phone,
+      hospital_timezone: state.hospital.timezone,
+      display_message: state.hospital.display_message,
+      announcement_enabled: state.hospital.announcement_enabled,
+      avg_consultation_minutes: state.hospital.avg_consultation_minutes,
+      queue_date: queueDate,
+      doctor_id: doctor.id,
+      doctor_name: doctor.name,
+      department: doctor.department,
+      room_number: doctor.room_number,
+      display_order: doctor.display_order,
+      current_token: snapshot.currentToken,
+      next_token: snapshot.nextToken,
+      waiting_count: snapshot.waitingCount,
+      total_today: entries.length,
+      updated_at: new Date().toISOString(),
+    }
+  })
+}
+
+function tokenPulseFor(state: DemoState, publicId: string): TokenPulseResult | null {
+  const entry = state.entries.find((e) => e.public_id === publicId)
+  if (!entry) return null
+
+  const entries = entriesForDoctor(state, entry.doctor_id, entry.queue_date)
+  const minimal = entries.map(toMinimalEntry)
+  const snapshot = deriveSnapshot(minimal)
+
+  return {
+    public_id: entry.public_id,
+    status: entry.status,
+    token_number: entry.token_number,
+    current_token: snapshot.currentToken,
+    next_token: snapshot.nextToken,
+    patients_ahead: countPatientsAhead(minimal, entry.token_number),
+    waiting_count: snapshot.waitingCount,
+    updated_at: entry.updated_at,
+  }
+}
+
 function tokenStatusFor(state: DemoState, publicId: string): TokenStatusResult | null {
   const entry = state.entries.find((e) => e.public_id === publicId)
   if (!entry) return null
@@ -452,6 +540,12 @@ export const demoDataSource: QueueDataSource = {
       const queueDate = currentQueueDate(state)
       const entries = entriesForDoctor(state, doctor.id, queueDate)
 
+      // Mirrors the daily cap in register_patient(): the abuse backstop for the
+      // public anon key.
+      if (entries.length >= state.hospital.max_daily_tokens) {
+        throw new AppError('QUEUE_FULL')
+      }
+
       // Atomic within the lock: no other tab can be between this read and write.
       const nextToken = entries.reduce((max, e) => Math.max(max, e.token_number), 0) + 1
 
@@ -469,6 +563,7 @@ export const demoDataSource: QueueDataSource = {
         created_at: new Date().toISOString(),
         called_at: null,
         completed_at: null,
+        updated_at: new Date().toISOString(),
       }
 
       state.entries.push(entry)
@@ -492,8 +587,16 @@ export const demoDataSource: QueueDataSource = {
     return tokenStatusFor(readState(), publicId)
   },
 
+  async getTokenPulse(publicId: string): Promise<TokenPulseResult | null> {
+    return tokenPulseFor(readState(), publicId)
+  },
+
   async getPublicQueue(doctorId: string): Promise<PublicQueueResult | null> {
     return publicQueueFor(readState(), doctorId)
+  },
+
+  async getPublicHospitalQueue(hospitalId: string): Promise<PublicHospitalQueueRow[]> {
+    return publicHospitalQueueFor(readState(), hospitalId)
   },
 
   // ---- staff ------------------------------------------------------------
@@ -526,10 +629,17 @@ export const demoDataSource: QueueDataSource = {
 
   // ---- queue ------------------------------------------------------------
 
-  async listQueue(doctorId: string, queueDate: string): Promise<QueueEntryView[]> {
+  async listQueue(
+    doctorId: string,
+    queueDate: string,
+    options?: { since?: string },
+  ): Promise<QueueEntryView[]> {
     const state = readState()
+    const rows = entriesForDoctor(state, doctorId, queueDate)
+      .filter((entry) => (options?.since ? entry.updated_at >= options.since : true))
+      .map(toQueueEntryView)
     // Convert to views first: `sortByToken` works on the camelCase view shape.
-    return sortByToken(entriesForDoctor(state, doctorId, queueDate).map(toQueueEntryView))
+    return sortByToken(rows)
   },
 
   async callNext(doctorId: string): Promise<CallNextResult | null> {
@@ -548,6 +658,7 @@ export const demoDataSource: QueueDataSource = {
         if (entry.status === 'CALLED' || entry.status === 'IN_CONSULTATION') {
           entry.status = 'COMPLETED'
           entry.completed_at = now
+          entry.updated_at = now
         }
       }
 
@@ -563,6 +674,7 @@ export const demoDataSource: QueueDataSource = {
 
       next.status = 'CALLED'
       next.called_at = now
+      next.updated_at = now
 
       writeState(state)
       broadcast(doctorId)
@@ -591,8 +703,10 @@ export const demoDataSource: QueueDataSource = {
       const doctor = state.doctors.find((d) => d.id === entry.doctor_id)
       if (!doctor) throw new AppError('DOCTOR_NOT_FOUND')
 
+      const now = new Date().toISOString()
       entry.status = 'CALLED'
-      entry.called_at = new Date().toISOString()
+      entry.called_at = now
+      entry.updated_at = now
 
       writeState(state)
       broadcast(entry.doctor_id)
@@ -661,6 +775,22 @@ export const demoDataSource: QueueDataSource = {
     }
   },
 
+  subscribeToHospital(hospitalId: string, onChange: () => void): () => void {
+    ensureChannel()
+
+    // The demo has one hospital and broadcasts every queue change to '*', so
+    // the hospital subscription is the same as listening for any change.
+    const key = hospitalId === readState().hospital.id ? '*' : `hospital:${hospitalId}`
+    const forHospital = listeners.get(key) ?? new Set<() => void>()
+    forHospital.add(onChange)
+    listeners.set(key, forHospital)
+
+    return () => {
+      forHospital.delete(onChange)
+      if (forHospital.size === 0) listeners.delete(key)
+    }
+  },
+
   // ---- demo-only controls -----------------------------------------------
 
   async resetDemoData(): Promise<void> {
@@ -708,8 +838,10 @@ async function transition(
     if (!entry) throw new AppError('TOKEN_NOT_FOUND')
     if (!allowedFrom.includes(entry.status)) throw new AppError('INVALID_STATUS_TRANSITION')
 
+    const now = new Date().toISOString()
     entry.status = to
-    if (setCompletedAt) entry.completed_at = new Date().toISOString()
+    if (setCompletedAt) entry.completed_at = now
+    entry.updated_at = now
 
     writeState(state)
     broadcast(entry.doctor_id)

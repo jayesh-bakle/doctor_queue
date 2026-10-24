@@ -45,7 +45,7 @@ then the `create schema` and grants as a second query.
 
 ---
 
-## 2. Rebuild the structure — all six migrations, in this order
+## 2. Rebuild the structure — all ten migrations, in this order
 
 For each file: open `supabase/migrations/<file>`, copy the **entire** file into the SQL Editor, and
 run it. Wait for success before starting the next one.
@@ -56,8 +56,16 @@ run it. Wait for success before starting the next one.
 4. `004_fix_doctor_delete.sql`
 5. `005_sheet_export.sql`
 6. `006_multi_hospital_support.sql`
+7. `007_quota_optimization.sql`
+8. `008_daily_token_cap.sql`
+9. `009_hospital_changes.sql`
+10. `010_big_hospital_hardening.sql`
 
-Order matters: 003 and 006 drop and recreate the same two RPCs, and 006 must run last.
+Order matters: 003, 006, 007 and 008 drop and recreate overlapping RPCs, so run them in this
+order. 009 adds the doctor-change signal used by the TV and recreates `prune_queue_history()` to
+prune that signal table too. 010 raises the default daily cap to 2,000 and adds the export anti-join
+used by `daily-sheet-export`. Do not run the `revoke execute on register_patient` statement at the
+bottom of 008 until the `register-patient` Edge Function is deployed (README section 8).
 
 **Do not run `supabase/seed.sql` for a real deployment.** It inserts the sample
 "श्री गणेश हॉस्पिटल" and two demo doctors; it is only for local demos.
@@ -197,7 +205,7 @@ After signing in at that clinic, open **QR कोड**; the page shows all three
 | --- | --- |
 | Patient poster (print this) | `https://<site>/h/<hospital-id>` — encoded in the QR |
 | Reception login | `https://<site>/staff/login/<hospital-id>` — copy button on the QR page |
-| TV display, per doctor | `https://<site>/display/<doctor-id>` — listed on the QR page |
+| Shared TV display | `https://<site>/display/h/<hospital-id>` — copy button on the QR page; shows every active doctor |
 
 Each clinic gets **one** poster and **one** staff login link. Print the poster from `/qr` while
 signed in to that clinic, so it carries the correct name and address.

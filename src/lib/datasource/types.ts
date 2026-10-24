@@ -13,11 +13,13 @@ import type {
   DoctorRow,
   HospitalRow,
   PatientType,
+  PublicHospitalQueueRow,
   PublicQueueResult,
   QueueEntryRow,
   RecallResult,
   RegisterPatientResult,
   StaffRole,
+  TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
@@ -27,6 +29,11 @@ export interface RegisterPatientInput {
   patientName: string
   mobile: string | null
   patientType: PatientType
+  /**
+   * Cloudflare Turnstile response token. Required in production, where the
+   * `register-patient` Edge Function verifies it before calling the RPC.
+   */
+  turnstileToken?: string | null
 }
 
 export interface DoctorInput {
@@ -66,6 +73,7 @@ export function toQueueEntryView(row: QueueEntryRow): QueueEntryView {
     status: row.status,
     createdAt: row.created_at,
     calledAt: row.called_at,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -114,14 +122,36 @@ export interface QueueDataSource {
   // ---- patient (no authentication) --------------------------------------
   registerPatient(input: RegisterPatientInput): Promise<RegisterPatientResult>
   getTokenStatus(publicId: string): Promise<TokenStatusResult | null>
+  /**
+   * The tiny polled payload for a patient's phone: status, token and counts
+   * only. `getTokenStatus` is the full record, read once on page load.
+   */
+  getTokenPulse(publicId: string): Promise<TokenPulseResult | null>
   getPublicQueue(doctorId: string): Promise<PublicQueueResult | null>
+  /**
+   * The hospital-wide public payload: one row per active doctor, with no
+   * patient data. The shared TV and the registration page both use this instead
+   * of one `getPublicQueue` call per doctor.
+   */
+  getPublicHospitalQueue(hospitalId: string): Promise<PublicHospitalQueueRow[]>
 
   // ---- staff ------------------------------------------------------------
   signIn(email: string, password: string): Promise<StaffSession>
   signOut(): Promise<void>
   getCurrentStaff(): Promise<StaffSession | null>
 
-  listQueue(doctorId: string, queueDate: string): Promise<QueueEntryView[]>
+  /**
+   * The staff dashboard's queue.
+   *
+   * `since` is an ISO timestamp: when supplied only rows whose `updated_at` is
+   * at or after it are returned, which is how a live event becomes a small
+   * delta fetch instead of a full re-read of the day.
+   */
+  listQueue(
+    doctorId: string,
+    queueDate: string,
+    options?: { since?: string },
+  ): Promise<QueueEntryView[]>
   callNext(doctorId: string): Promise<CallNextResult | null>
   recall(publicId: string): Promise<RecallResult>
   startConsultation(publicId: string): Promise<void>
@@ -148,6 +178,14 @@ export interface QueueDataSource {
    * when the network drops.
    */
   subscribeToQueue(doctorId: string, onChange: () => void): () => void
+
+  /**
+   * Calls `onChange` whenever a queue or the active-doctor list for this
+   * hospital may have changed. The shared TV uses one subscription per
+   * hospital instead of one per doctor, and must also react when reception
+   * adds, edits, reorders or deactivates a doctor.
+   */
+  subscribeToHospital(hospitalId: string, onChange: () => void): () => void
 
   // ---- demo only (absent on the Supabase backend) -----------------------
   resetDemoData?(): Promise<void>

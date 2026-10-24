@@ -22,6 +22,17 @@ export const IS_DEV = Boolean(import.meta.env.DEV)
 export const SUPABASE_URL = rawUrl
 export const SUPABASE_ANON_KEY = rawAnonKey
 
+/**
+ * Cloudflare Turnstile's public site key.
+ *
+ * Empty means the widget is not rendered and registration calls the RPC
+ * directly, which is how demo mode and local development work. In production it
+ * must be set, and the matching secret lives only in the Edge Function.
+ */
+export const TURNSTILE_SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '').trim()
+
+export const isTurnstileEnabled = TURNSTILE_SITE_KEY !== ''
+
 /** Whether a real Supabase project has been configured. */
 export const isSupabaseConfigured = rawUrl !== '' && rawAnonKey !== ''
 
@@ -55,9 +66,15 @@ export function hospitalRegistrationUrl(hospitalId: string): string {
   return `${siteOrigin()}/h/${hospitalId}`
 }
 
-/** The public TV URL for a given doctor. */
-export function displayUrl(doctorId: string): string {
-  return `${siteOrigin()}/display/${doctorId}`
+/**
+ * The public TV URL for a clinic's waiting room.
+ *
+ * One screen per hospital shows every active doctor at once, so the id is the
+ * hospital's, not a doctor's. A clinic with two doctors used to need two
+ * screens; it now needs one, and one Realtime connection instead of two.
+ */
+export function displayUrl(hospitalId: string): string {
+  return `${siteOrigin()}/display/h/${hospitalId}`
 }
 
 /**

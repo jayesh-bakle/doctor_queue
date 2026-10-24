@@ -2,17 +2,21 @@ import { AlertCircle, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
 import { useId, useRef, useState, type FormEvent } from 'react'
 
 import { useLanguage } from '../../hooks/useLanguage'
+import { isTurnstileEnabled } from '../../lib/env'
 import { cn } from '../../lib/utils'
 import { validateRegistration, type RegistrationField } from '../../lib/validation'
 import type { PatientType } from '../../types/database'
 import type { DoctorOption } from '../../types/queue'
 import { Button } from '../common/Button'
+import { TurnstileWidget } from './TurnstileWidget'
 
 export interface RegistrationFormValues {
   doctorId: string
   patientName: string
   mobile: string | null
   patientType: PatientType
+  /** Null when Turnstile is not configured (demo mode or local development). */
+  turnstileToken: string | null
 }
 
 interface RegistrationFormProps {
@@ -58,6 +62,9 @@ export function RegistrationForm({
   const [doctorId, setDoctorId] = useState(initialDoctorId ?? '')
   const [patientType, setPatientType] = useState<PatientType>('NEW')
   const [errors, setErrors] = useState<Partial<Record<RegistrationField, string>>>({})
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileKey, setTurnstileKey] = useState(0)
+  const [captchaError, setCaptchaError] = useState(false)
 
   const nameRef = useRef<HTMLInputElement>(null)
   const doctorGroupRef = useRef<HTMLFieldSetElement>(null)
@@ -81,12 +88,25 @@ export function RegistrationForm({
       return
     }
 
+    if (isTurnstileEnabled && !turnstileToken) {
+      setCaptchaError(true)
+      return
+    }
+
     onSubmit({
       doctorId: result.normalised.doctorId,
       patientName: result.normalised.patientName,
       mobile: result.normalised.mobile,
       patientType: result.normalised.patientType,
+      turnstileToken,
     })
+
+    // A Turnstile token is single-use. Discard it and ask for a fresh challenge
+    // so that if this submit fails, retrying does not resend a spent token.
+    if (isTurnstileEnabled) {
+      setTurnstileToken(null)
+      setTurnstileKey((key) => key + 1)
+    }
   }
 
   const doctorError = errors.doctorId
@@ -249,6 +269,28 @@ export function RegistrationForm({
         <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         {t.privacyNote}
       </p>
+
+      {/* ---- Abuse check --------------------------------------------------- */}
+      {isTurnstileEnabled ? (
+        <div className="flex flex-col gap-2">
+          <TurnstileWidget
+            resetKey={turnstileKey}
+            onVerify={(token) => {
+              setTurnstileToken(token)
+              if (token) setCaptchaError(false)
+            }}
+          />
+          {captchaError ? (
+            <p
+              role="alert"
+              className="flex items-center gap-1.5 text-sm font-medium text-red-700"
+            >
+              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+              {t.captchaRequired}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* ---- Submit error -------------------------------------------------- */}
       {submitError ? (

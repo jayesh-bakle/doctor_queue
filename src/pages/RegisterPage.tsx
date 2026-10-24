@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { Button } from '../components/common/Button'
@@ -8,9 +8,10 @@ import { RegistrationForm, type RegistrationFormValues } from '../components/pat
 import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
-import { usePublicQueue } from '../hooks/usePublicQueue'
+import { usePublicHospitalQueue } from '../hooks/usePublicHospitalQueue'
 import { dataSource } from '../lib/datasource'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
+import type { PublicHospitalQueueRow } from '../types/database'
 import type { DoctorOption } from '../types/queue'
 import { PatientLayout } from '../layouts/PatientLayout'
 
@@ -18,14 +19,19 @@ import { PatientLayout } from '../layouts/PatientLayout'
  * One doctor's live token, as the patient sees it before registering.
  *
  * This is the same public payload the TV display uses — name, room, current
- * token and a waiting count, and no patient data of any kind. Rendering one row
- * per doctor is deliberate: the patient needs to see which queue is short before
- * choosing a doctor.
+ * token and a waiting count, and no patient data of any kind. One hospital-wide
+ * poll fills every row: the patient needs to see which queue is short before
+ * choosing a doctor, without each phone making one request per doctor.
  */
-function DoctorQueueSummary({ doctor }: { doctor: DoctorOption }) {
+function DoctorQueueSummary({
+  doctor,
+  queue,
+}: {
+  doctor: DoctorOption
+  queue: PublicHospitalQueueRow | undefined
+}) {
   const { messages } = useLanguage()
   const t = messages.ui.register
-  const { data } = usePublicQueue(doctor.id)
 
   return (
     <li className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -40,10 +46,13 @@ function DoctorQueueSummary({ doctor }: { doctor: DoctorOption }) {
       <span className="text-sm text-slate-600">
         {t.nowServing}:{' '}
         <span className="font-bold text-slate-900">
-          {data?.current_token != null ? messages.token(data.current_token) : '—'}
+          {queue?.current_token != null ? messages.token(queue.current_token) : '—'}
         </span>
         <span className="mx-2 text-slate-300">·</span>
-        {t.waitingLabel}: <span className="font-semibold">{messages.patientCount(data?.waiting_count ?? 0)}</span>
+        {t.waitingLabel}:{' '}
+        <span className="font-semibold">
+          {messages.patientCount(queue?.waiting_count ?? 0)}
+        </span>
       </span>
     </li>
   )
@@ -76,8 +85,22 @@ export function RegisterPage() {
 
   const { hospital, loading: hospitalLoading } = useHospital(hospitalId)
   const { doctors, loading, error, reload } = useDoctors({ hospitalId })
+  const { doctors: queueDoctors } = usePublicHospitalQueue(hospitalId, {
+    realtime: false,
+    pollMs: 30_000,
+  })
   const { messages } = useLanguage()
   const t = messages.ui.register
+
+  const queueByDoctor = useMemo(
+    () =>
+      new Map(
+        queueDoctors
+          .filter((row) => row.doctor_id !== null)
+          .map((row) => [row.doctor_id as string, row]),
+      ),
+    [queueDoctors],
+  )
 
   // A doctor-specific QR poster links here with ?doctorId=…, which preselects
   // that doctor. The value is only a hint — the server validates it on submit.
@@ -101,6 +124,7 @@ export function RegisterPage() {
         patientName: values.patientName,
         mobile: values.mobile,
         patientType: values.patientType,
+        turnstileToken: values.turnstileToken,
       })
 
       // `replace` so the back button does not return to a form that would
@@ -150,7 +174,11 @@ export function RegisterPage() {
             <h2 className="mb-3 text-base font-bold text-slate-800">{t.queueSummaryTitle}</h2>
             <ul className="flex flex-col gap-2">
               {doctors.map((doctor) => (
-                <DoctorQueueSummary key={doctor.id} doctor={doctor} />
+                <DoctorQueueSummary
+                  key={doctor.id}
+                  doctor={doctor}
+                  queue={queueByDoctor.get(doctor.id)}
+                />
               ))}
             </ul>
           </CardBody>

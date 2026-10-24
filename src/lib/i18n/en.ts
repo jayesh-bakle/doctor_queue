@@ -238,6 +238,10 @@ export const en: Messages = {
     INVALID_CREDENTIALS: 'The email or password is incorrect.',
     STAFF_NOT_LINKED: 'Your account is not linked to a hospital. Please contact an administrator.',
     QUEUE_EMPTY: 'Nobody is waiting in the queue.',
+    QUEUE_FULL:
+      'This queue is full for today. Please speak to reception.',
+    TURNSTILE_FAILED:
+      'The security check did not pass. Please reload the page and try again.',
     INVALID_TIME_ZONE:
       'That time zone was not recognised. Please write it in English, in the form "Asia/Kolkata".',
     OFFLINE: 'Please check your internet connection.',
@@ -400,7 +404,7 @@ export const en: Messages = {
       noMobile: 'No mobile phone? Register at reception.',
       displayLinksTitle: 'TV display links',
       displayLinksDescription:
-        'Open these on a TV, monitor or tablet. No patient names appear there.',
+        'Open this on a TV, monitor or tablet. It shows every active doctor, and no patient names.',
       noDoctorsTitle: 'No doctors have been added yet.',
       noDoctorsDescription: 'Add a doctor first to get the display links.',
       staffLinkTitle: 'Reception login link',
@@ -415,6 +419,7 @@ export const en: Messages = {
       unavailable: 'This display is unavailable.',
       checkUrl: 'Please speak to reception, or check the URL.',
       emptyQueue: "Today's queue has not started yet.",
+      nowCalling: 'Now calling',
       currentLabel: 'Token being served',
       nextLabel: 'Next number',
       waitingLabel: 'Waiting',
@@ -469,6 +474,7 @@ export const en: Messages = {
       patientTypeLegend: 'Patient type',
       privacyNote:
         'This entry is only for managing the queue. Please do not enter medical information here.',
+      captchaRequired: 'Please complete the security check before getting a token.',
       submitting: 'Registering…',
       submit: 'Get my token',
     },

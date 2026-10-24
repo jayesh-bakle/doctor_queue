@@ -90,6 +90,10 @@ afterAll(async () => {
   // Cascades to doctors, queue_entries and queue_events. Nothing else in the
   // database references this hospital, so no real data is at risk.
   await query(pool, `delete from hospitals where id = $1`, [fixture.hospitalId])
+  // hospital_changes deliberately has no FK to hospitals, so clean it up too.
+  await query(pool, `delete from hospital_changes where hospital_id = $1`, [
+    fixture.hospitalId,
+  ])
   await pool.end()
 })
 
@@ -375,11 +379,16 @@ suite('row level security', () => {
     }
   })
 
-  it('lets anon call the three functions a patient legitimately needs', async () => {
+  it('lets anon call the functions a patient legitimately needs', async () => {
+    // `register_patient` stays callable until the register-patient Edge Function
+    // is deployed; 008_daily_token_cap.sql then documents the revoke. The three
+    // read RPCs remain callable because they expose no patient data.
     for (const fn of [
       'register_patient(uuid,text,text,text)',
       'get_token_status(uuid)',
+      'get_token_pulse(uuid)',
       'get_public_queue(uuid)',
+      'get_public_hospital_queue(uuid)',
     ]) {
       const rows = await query<{ allowed: boolean }>(
         pool,
@@ -388,6 +397,134 @@ suite('row level security', () => {
       )
       expect(rows[0]!.allowed, `anon cannot execute ${fn}`).toBe(true)
     }
+  })
+})
+
+suite('get_unexported_entries — bounded Sheet export', () => {
+  it('is executable only by the service role', async () => {
+    for (const role of ['anon', 'authenticated']) {
+      const rows = await query<{ allowed: boolean }>(
+        pool,
+        `select has_function_privilege($1, 'get_unexported_entries(uuid,integer)', 'EXECUTE') as allowed`,
+        [role],
+      )
+      expect(rows[0]!.allowed, `${role} can read patient export rows`).toBe(false)
+    }
+
+    const [service] = await query<{ allowed: boolean }>(
+      pool,
+      `select has_function_privilege('service_role', 'get_unexported_entries(uuid,integer)', 'EXECUTE') as allowed`,
+    )
+    expect(service!.allowed).toBe(true)
+  })
+
+  it('returns a terminal row until its export mark exists', async () => {
+    const [created] = await query<{ id: string }>(
+      pool,
+      `insert into queue_entries (
+         hospital_id, doctor_id, queue_date, token_number,
+         patient_name, mobile, patient_type, status
+       )
+       select $1, $2, current_date, coalesce(max(token_number), 0) + 1,
+              'चाचणी नाव', '9876543210', 'NEW', 'COMPLETED'
+         from queue_entries
+        where doctor_id = $2 and queue_date = current_date
+       returning id`,
+      [fixture.hospitalId, fixture.doctorB],
+    )
+
+    const [pending] = await query<{ id: string }>(
+      pool,
+      `select id from get_unexported_entries($1, 5000) where id = $2`,
+      [fixture.hospitalId, created!.id],
+    )
+    expect(pending?.id).toBe(created!.id)
+
+    await query(
+      pool,
+      `insert into hospital_export_marks (entry_id, hospital_id) values ($1, $2)
+       on conflict (entry_id, hospital_id) do nothing`,
+      [created!.id, fixture.hospitalId],
+    )
+
+    const [afterMark] = await query<{ id: string }>(
+      pool,
+      `select id from get_unexported_entries($1, 5000) where id = $2`,
+      [fixture.hospitalId, created!.id],
+    )
+    expect(afterMark).toBeUndefined()
+  })
+
+  it('defaults the daily cap to 2,000', async () => {
+    const [column] = await query<{ column_default: string | null }>(
+      pool,
+      `select column_default from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'hospitals'
+          and column_name = 'max_daily_tokens'`,
+    )
+    expect(column?.column_default).toContain('2000')
+  })
+})
+
+suite('hospital_changes — doctor changes reach the shared TV', () => {
+  it('carries only an opaque signal, and anon may read it', async () => {
+    const columns = await query<{ column_name: string }>(
+      pool,
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = 'hospital_changes'`,
+    )
+    expect(columns.map((row) => row.column_name).sort()).toEqual([
+      'created_at',
+      'hospital_id',
+      'id',
+    ])
+
+    const [privilege] = await query<{ can_select: boolean }>(
+      pool,
+      `select has_table_privilege('anon', 'hospital_changes', 'SELECT') as can_select`,
+    )
+    expect(privilege!.can_select).toBe(true)
+  })
+
+  it('emits one signal for a doctor insert, update and delete', async () => {
+    const [before] = await query<{ count: number }>(
+      pool,
+      `select count(*)::integer as count from hospital_changes where hospital_id = $1`,
+      [fixture.hospitalId],
+    )
+
+    const [created] = await query<{ id: string }>(
+      pool,
+      `insert into doctors (hospital_id, name, department, room_number)
+       values ($1, 'डॉ. बदल', 'सामान्य वैद्यक', '9') returning id`,
+      [fixture.hospitalId],
+    )
+
+    const [afterInsert] = await query<{ count: number }>(
+      pool,
+      `select count(*)::integer as count from hospital_changes where hospital_id = $1`,
+      [fixture.hospitalId],
+    )
+    expect(afterInsert!.count).toBe(before!.count + 1)
+
+    await query(pool, `update doctors set room_number = '10' where id = $1`, [created!.id])
+
+    const [afterUpdate] = await query<{ count: number }>(
+      pool,
+      `select count(*)::integer as count from hospital_changes where hospital_id = $1`,
+      [fixture.hospitalId],
+    )
+    expect(afterUpdate!.count).toBe(afterInsert!.count + 1)
+
+    await query(pool, `delete from doctors where id = $1`, [created!.id])
+
+    const [afterDelete] = await query<{ count: number }>(
+      pool,
+      `select count(*)::integer as count from hospital_changes where hospital_id = $1`,
+      [fixture.hospitalId],
+    )
+    expect(afterDelete!.count).toBe(afterUpdate!.count + 1)
   })
 })
 

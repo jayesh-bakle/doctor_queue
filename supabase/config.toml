@@ -9,3 +9,8 @@ project_id = "doctor-queue-system"
 # Cron carries no Supabase user JWT, so JWT verification is disabled and the
 # function authenticates each call with `x-export-secret` instead.
 verify_jwt = false
+
+[functions.register-patient]
+# Patients have no Supabase account. The Turnstile check inside the function is
+# the gate, and the per-doctor daily cap in register_patient() is the backstop.
+verify_jwt = false

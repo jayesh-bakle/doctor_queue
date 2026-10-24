@@ -144,24 +144,93 @@ async function sheetsFetch(
   return response.json()
 }
 
+interface SheetProperties {
+  sheetId?: number
+  title?: string
+}
+
+async function listSheets(
+  spreadsheetId: string,
+  accessToken: string,
+): Promise<SheetProperties[]> {
+  const payload = (await sheetsFetch(
+    `${SHEETS_API}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
+    accessToken,
+  )) as { sheets?: Array<{ properties?: SheetProperties }> }
+
+  return (payload.sheets ?? [])
+    .map((sheet) => sheet.properties)
+    .filter((properties): properties is SheetProperties => Boolean(properties))
+}
+
+/** The numeric grid id for a tab, or null when the tab does not exist yet. */
+export async function findSheetId(
+  spreadsheetId: string,
+  tab: string,
+  accessToken: string,
+): Promise<number | null> {
+  const match = (await listSheets(spreadsheetId, accessToken)).find(
+    (properties) => properties.title === tab,
+  )
+  return match?.sheetId ?? null
+}
+
 /** Verifies the configured tab exists and returns its numeric grid id. */
 export async function getSheetId(
   spreadsheetId: string,
   tab: string,
   accessToken: string,
 ): Promise<number> {
-  const payload = (await sheetsFetch(
-    `${SHEETS_API}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`,
-    accessToken,
-  )) as { sheets?: Array<{ properties?: { sheetId?: number; title?: string } }> }
-
-  const match = payload.sheets?.find((sheet) => sheet.properties?.title === tab)
-  if (!match?.properties || match.properties.sheetId === undefined) {
+  const sheetId = await findSheetId(spreadsheetId, tab, accessToken)
+  if (sheetId === null) {
     throw new Error(
-      `Sheet tab "${tab}" was not found. Create it, or set GOOGLE_SHEET_TAB to its name.`,
+      `Sheet tab "${tab}" was not found. Create it, or update the tab in hospital_sheet_exports.`,
     )
   }
-  return match.properties.sheetId
+  return sheetId
+}
+
+/**
+ * Returns the tab's grid id, creating the tab when it is missing.
+ *
+ * Monthly tabs are created on demand by the cron function, so the service
+ * account needs Editor access to the spreadsheet (it already does for append
+ * and delete).
+ */
+export async function ensureSheet(
+  spreadsheetId: string,
+  tab: string,
+  accessToken: string,
+): Promise<number> {
+  const existing = await findSheetId(spreadsheetId, tab, accessToken)
+  if (existing !== null) return existing
+
+  try {
+    const payload = (await sheetsFetch(
+      `${SHEETS_API}/${spreadsheetId}:batchUpdate`,
+      accessToken,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          requests: [{ addSheet: { properties: { title: tab } } }],
+        }),
+      },
+    )) as {
+      replies?: Array<{ addSheet?: { properties?: { sheetId?: number } } }>
+    }
+
+    const created = payload.replies?.[0]?.addSheet?.properties?.sheetId
+    if (created === undefined) {
+      throw new Error(`Google Sheets did not return an id for the new tab "${tab}"`)
+    }
+    return created
+  } catch (error) {
+    // Two overlapping runs can both decide the tab is missing. If the other run
+    // created it first, use that tab instead of failing the whole export.
+    const raced = await findSheetId(spreadsheetId, tab, accessToken).catch(() => null)
+    if (raced !== null) return raced
+    throw error
+  }
 }
 
 /** Writes the header row if the tab is empty. Never overwrites existing rows. */
@@ -211,15 +280,20 @@ export async function appendRows(
 ): Promise<void> {
   if (rows.length === 0) return
 
-  await sheetsFetch(
-    `${SHEETS_API}/${spreadsheetId}/values/${encodeRange(tab, 'A1')}:append` +
-      '?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
-    accessToken,
-    {
-      method: 'POST',
-      body: JSON.stringify({ values: rows }),
-    },
-  )
+  // A nightly reconcile can cover 7 days at 2,000 patients/day. Sending that
+  // as one JSON body risks Google's request-size limit, so append in batches.
+  const batchSize = 5_000
+  for (let index = 0; index < rows.length; index += batchSize) {
+    await sheetsFetch(
+      `${SHEETS_API}/${spreadsheetId}/values/${encodeRange(tab, 'A1')}:append` +
+        '?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
+      accessToken,
+      {
+        method: 'POST',
+        body: JSON.stringify({ values: rows.slice(index, index + batchSize) }),
+      },
+    )
+  }
 }
 
 /**

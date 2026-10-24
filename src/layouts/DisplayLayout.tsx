@@ -9,7 +9,7 @@ import type { ReactNode } from 'react'
  */
 export function DisplayLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-900 text-white">
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-900 text-white">
       {children}
     </div>
   )

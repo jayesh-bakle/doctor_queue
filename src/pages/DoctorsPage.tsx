@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { EmptyState, ErrorState, LoadingState } from '../components/common/Feedback'
 import { DoctorForm, type DoctorFormValues } from '../components/staff/DoctorForm'
 import { useDoctors } from '../hooks/useDoctors'
+import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
@@ -23,6 +24,7 @@ import { StaffLayout } from '../layouts/StaffLayout'
  */
 export function DoctorsPage() {
   const { doctors, loading, error, reload } = useDoctors({ includeInactive: true })
+  const { hospital } = useHospital()
   const { messages } = useLanguage()
   const t = messages.ui.doctors
 
@@ -191,15 +193,17 @@ export function DoctorsPage() {
                               {t.qr}
                             </Button>
                           </Link>
-                          <a href={displayUrl(doctor.id)} target="_blank" rel="noreferrer">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              icon={<ExternalLink className="size-4" aria-hidden="true" />}
-                            >
-                              {t.display}
-                            </Button>
-                          </a>
+                          {hospital ? (
+                            <a href={displayUrl(hospital.id)} target="_blank" rel="noreferrer">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                icon={<ExternalLink className="size-4" aria-hidden="true" />}
+                              >
+                                {t.display}
+                              </Button>
+                            </a>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="secondary"

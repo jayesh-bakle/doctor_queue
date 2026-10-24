@@ -1,5 +1,4 @@
 import { CheckCircle2, RefreshCw, Smartphone } from 'lucide-react'
-import { useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { Button } from '../components/common/Button'
@@ -15,14 +14,11 @@ import { PatientLayout } from '../layouts/PatientLayout'
 /**
  * The patient's live token page.
  *
- * Two mechanisms keep it current, on purpose:
- *
- *   1. Realtime — the page subscribes to the doctor's public queue feed and
- *      re-reads its own row the moment anything changes. This is what makes the
- *      screen flip to "आता आपला क्रमांक आहे" the instant reception clicks.
- *   2. A slow poll — a 30-second safety net for when the realtime socket has
- *      quietly dropped (clinic wifi, a phone waking from sleep). Without it, a
- *      patient could sit looking at a stale number and never know.
+ * The page polls a tiny payload on an adaptive timer (15 s near the front of
+ * the queue, up to 45 s while far away), and only while the tab is visible.
+ * That keeps the patient's phone off the Realtime connection and message
+ * quotas, which is what lets several hospitals share one free Supabase project.
+ * The full record is read once; subsequent polls merge only the changing fields.
  *
  * The patient never has to refresh, and never has to ask reception (spec §2).
  */
@@ -31,13 +27,6 @@ export function TokenStatusPage() {
   const { data, loading, notFound, error, refresh } = useTokenStatus(publicId)
   const { messages } = useLanguage()
   const t = messages.ui.token
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void refresh()
-    }, 30_000)
-    return () => window.clearInterval(timer)
-  }, [refresh])
 
   if (loading) {
     return (

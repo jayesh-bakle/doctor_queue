@@ -192,6 +192,7 @@ export function primeSpeech(): void {
 }
 
 export function cancelSpeech(): void {
+  resetSpeechQueue()
   try {
     synth()?.cancel()
   } catch {
@@ -199,9 +200,173 @@ export function cancelSpeech(): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The TV announcement queue
+// ---------------------------------------------------------------------------
+//
+// The shared screen can call two doctors within a few seconds of each other.
+// The old `speak()` cancelled whatever was playing, so the second call could
+// erase the first. This queue lets the current sentence finish, keeps at most
+// three pending, and replaces a doctor's older announcement if they are recalled
+// before it is spoken. Anything older than fifteen seconds is no longer useful
+// in a waiting room and is dropped.
+
+interface QueuedAnnouncement {
+  key: string | null
+  text: string
+  language: Language
+  queuedAt: number
+}
+
+const MAX_PENDING_ANNOUNCEMENTS = 3
+const MAX_ANNOUNCEMENT_AGE_MS = 15_000
+const announcementQueue: QueuedAnnouncement[] = []
+
+let speaking = false
+let speechGeneration = 0
+let speechTimer: number | null = null
+
+function resetSpeechQueue(): void {
+  speechGeneration += 1
+  announcementQueue.length = 0
+  speaking = false
+
+  if (speechTimer !== null && typeof window !== 'undefined') {
+    window.clearTimeout(speechTimer)
+  }
+  speechTimer = null
+}
+
+function finishAnnouncement(generation: number): void {
+  if (generation !== speechGeneration) return
+
+  speaking = false
+  if (speechTimer !== null && typeof window !== 'undefined') {
+    window.clearTimeout(speechTimer)
+  }
+  speechTimer = null
+  drainAnnouncementQueue()
+}
+
+function speakQueued(item: QueuedAnnouncement): void {
+  const s = synth()
+  if (!s) {
+    speaking = false
+    return
+  }
+
+  const generation = speechGeneration
+
+  try {
+    const utterance = new SpeechSynthesisUtterance(item.text)
+    const voice = pickVoice(item.language)
+    if (voice) utterance.voice = voice
+    utterance.lang = voice?.lang ?? NEUTRAL_TAG[item.language]
+    utterance.rate = 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
+
+    let finished = false
+    const done = (): void => {
+      if (finished) return
+      finished = true
+      finishAnnouncement(generation)
+    }
+
+    utterance.onend = done
+    utterance.onerror = done
+
+    // Some engines never fire `onend` when the page loses focus. The fallback
+    // keeps the queue moving instead of spending the rest of the day thinking
+    // it is still speaking.
+    speechTimer = window.setTimeout(done, Math.max(6_000, item.text.length * 120))
+
+    if (s.paused) s.resume()
+    s.speak(utterance)
+  } catch {
+    // Invalidate this utterance's callbacks before moving on: some engines
+    // throw after accepting the utterance, and a late `onend` must not stop
+    // the next announcement mid-sentence.
+    speechGeneration += 1
+    speaking = false
+    if (speechTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(speechTimer)
+    }
+    speechTimer = null
+    drainAnnouncementQueue()
+  }
+}
+
+function drainAnnouncementQueue(): void {
+  if (speaking || announcementQueue.length === 0) return
+
+  const s = synth()
+  if (!s) {
+    announcementQueue.length = 0
+    return
+  }
+
+  const now = Date.now()
+  while (
+    announcementQueue.length > 0 &&
+    now - announcementQueue[0]!.queuedAt > MAX_ANNOUNCEMENT_AGE_MS
+  ) {
+    announcementQueue.shift()
+  }
+
+  const next = announcementQueue.shift()
+  if (!next) return
+
+  speaking = true
+  speakQueued(next)
+}
+
+/**
+ * Queues an announcement for the shared TV instead of cancelling the one that
+ * is already playing. `key` is normally the doctor id, so recalling the same
+ * doctor replaces the pending sentence rather than speaking twice.
+ *
+ * Returns whether the sentence entered the queue. It can return false when the
+ * browser cannot speak, announcements are off, or the text is empty.
+ */
+export function enqueueSpeech(
+  text: string,
+  options?: { language?: Language; key?: string | null },
+): boolean {
+  if (!isSpeechSupported()) return false
+  if (!isAnnouncementEnabled()) return false
+  if (!text.trim()) return false
+
+  const key = options?.key ?? null
+
+  if (key !== null) {
+    for (let index = announcementQueue.length - 1; index >= 0; index -= 1) {
+      if (announcementQueue[index]!.key === key) announcementQueue.splice(index, 1)
+    }
+  }
+
+  while (announcementQueue.length >= MAX_PENDING_ANNOUNCEMENTS) {
+    announcementQueue.shift()
+  }
+
+  announcementQueue.push({
+    key,
+    text,
+    language: options?.language ?? 'en',
+    queuedAt: Date.now(),
+  })
+
+  drainAnnouncementQueue()
+  return true
+}
+
 /**
  * Speaks an announcement such as
  * `टोकन क्रमांक ०२७, कृपया तपासणी कक्ष क्रमांक १ मध्ये या.`
+ *
+ * This is the immediate path used by reception when it calls or recalls a
+ * patient: it clears any pending TV backlog and speaks now. The shared TV uses
+ * {@link enqueueSpeech} so simultaneous calls are not cut off.
  *
  * `language` should be the language the sentence was written in and the screen
  * is showing, so the voice matches the words.
@@ -221,6 +386,7 @@ export function speak(text: string, options?: { force?: boolean; language?: Lang
 
   try {
     // A queued backlog of stale tokens is worse than no announcement at all.
+    resetSpeechQueue()
     s.cancel()
 
     const utterance = new SpeechSynthesisUtterance(text)

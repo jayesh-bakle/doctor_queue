@@ -99,6 +99,53 @@ body {
   }
 }
 
+/* A page change on the shared TV is a soft cross-fade, not a slide: the point
+   is to show that the whole page changed, without making patients chase moving
+   numbers. */
+@keyframes display-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.display-page-enter {
+  animation: display-page-enter 350ms ease-out;
+}
+
+/* A 720p waiting-room TV has much less vertical room than a 1080p one. Keep the
+   header, banner and footer compact so five cards still fit without scrolling. */
+@media (max-height: 800px) {
+  .display-header {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .display-date {
+    display: none;
+  }
+
+  .display-banner {
+    margin-top: 0.5rem;
+    min-height: 4.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .display-footer {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .display-footer p {
+    font-size: 1rem;
+  }
+}
+
 /* ==========================================================================
    Print — the reception QR poster
    ========================================================================== */

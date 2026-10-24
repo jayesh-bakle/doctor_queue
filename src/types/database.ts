@@ -22,6 +22,10 @@ export interface HospitalRow {
   announcement_enabled: boolean
   display_message: string
   avg_consultation_minutes: number
+  /** How many days of finished queue history the nightly prune keeps. */
+  retention_days: number
+  /** Hard ceiling on registrations per doctor per day (abuse backstop). */
+  max_daily_tokens: number
   created_at: string
 }
 
@@ -50,6 +54,8 @@ export interface QueueEntryRow {
   created_at: string
   called_at: string | null
   completed_at: string | null
+  /** Maintained by a trigger; the delta cursor for the staff dashboard. */
+  updated_at: string
 }
 
 /** A row of `queue_events`. Contains no personal data by design. */
@@ -135,6 +141,51 @@ export interface PublicQueueResult {
   next_token: number | null
   waiting_count: number
   total_today: number
+  updated_at: string
+}
+
+/**
+ * `get_token_pulse(...)` — the tiny payload a patient's phone polls.
+ *
+ * Deliberately smaller than `TokenStatusResult`: only the fields that change
+ * while the patient waits. The page loads the full record once, then merges
+ * these values on each poll.
+ */
+export interface TokenPulseResult {
+  public_id: string
+  status: QueueStatus
+  token_number: number
+  current_token: number | null
+  next_token: number | null
+  patients_ahead: number
+  waiting_count: number
+  updated_at: string
+}
+
+/**
+ * One row per active doctor from `get_public_hospital_queue(...)` — the shared
+ * waiting-room TV payload. Like the old per-doctor display, it contains no
+ * patient name, mobile number or clinical detail.
+ */
+export interface PublicHospitalQueueRow {
+  hospital_id: string
+  hospital_name: string
+  hospital_address: string | null
+  hospital_phone: string | null
+  hospital_timezone: string
+  display_message: string
+  announcement_enabled: boolean
+  avg_consultation_minutes: number
+  queue_date: string
+  doctor_id: string | null
+  doctor_name: string | null
+  department: string | null
+  room_number: string | null
+  display_order: number | null
+  current_token: number | null
+  next_token: number | null
+  waiting_count: number | null
+  total_today: number | null
   updated_at: string
 }
 

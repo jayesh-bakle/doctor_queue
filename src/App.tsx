@@ -68,7 +68,7 @@ export function App() {
               <Route path="/staff/settings" element={<SettingsPage />} />
 
               {/* --- Public display (TV, no login, no PII) ------------------ */}
-              <Route path="/display/:doctorId" element={<DisplayPage />} />
+              <Route path="/display/h/:hospitalId" element={<DisplayPage />} />
 
               {/* --- QR poster ----------------------------------------------- */}
               <Route path="/qr" element={<QRPage />} />

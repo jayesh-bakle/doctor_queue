@@ -1,65 +1,182 @@
 import { Clock } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { AnnouncementToggle } from '../components/common/AnnouncementToggle'
 import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
-import { TokenDisplay } from '../components/common/TokenDisplay'
-import { usePublicQueue } from '../hooks/usePublicQueue'
+import { DoctorCard } from '../components/display/DoctorCard'
+import { NowCallingBanner, type LatestCall } from '../components/display/NowCallingBanner'
+import { usePageRotation } from '../hooks/usePageRotation'
+import { usePublicHospitalQueue } from '../hooks/usePublicHospitalQueue'
 import { useLanguage } from '../hooks/useLanguage'
+import {
+  buildDoctorPages,
+  cardClassFor,
+  displaySignature,
+  gridClassFor,
+} from '../lib/displayLayout'
 import { displayUrl } from '../lib/env'
-import { DEFAULT_TIME_ZONE } from '../lib/utils'
-import { speak } from '../lib/speech'
+import { DEFAULT_TIME_ZONE, cn } from '../lib/utils'
+import { enqueueSpeech } from '../lib/speech'
 import { DisplayLayout } from '../layouts/DisplayLayout'
+import type { PublicHospitalQueueRow } from '../types/database'
+
+const HIGHLIGHT_DURATION_MS = 30_000
 
 /**
- * The public TV display.
+ * The shared waiting-room TV.
  *
- * Two things about this page are non-negotiable:
+ * One screen per clinic, showing every active doctor. The list is not fixed:
+ * page size and rotation are derived from the active doctor count, and the
+ * Supabase subscription also listens for doctor changes so a doctor added at
+ * reception appears without waiting for the next queue event.
  *
- * 1. It shows NO patient information. Not a name, not a mobile number, not an
- *    age. It cannot, in fact, because `get_public_queue()` selects no such
- *    columns — the data never reaches the browser (spec §37).
- *
- * 2. The current token is enormous. It has to be readable by someone with
- *    ordinary eyesight sitting at the far end of a waiting room, which drives
- *    every layout decision here.
- *
- * When the token changes the number flashes and, if audio is on, is announced
- * aloud — so a patient who looked away still catches their turn (spec §14).
+ * It shows NO patient information. The RPC selects no name, mobile number or
+ * clinical column, and the doctor-change signal carries only a hospital id.
  */
 export function DisplayPage() {
-  const { doctorId } = useParams<{ doctorId: string }>()
-  const { data, loading, notFound, error } = usePublicQueue(doctorId)
+  const { hospitalId } = useParams<{ hospitalId: string }>()
+  const { doctors, hospital, loading, notFound, error } = usePublicHospitalQueue(hospitalId)
   const { language, messages } = useLanguage()
   const t = messages.ui.display
 
   const [now, setNow] = useState(() => new Date())
-  const announcedRef = useRef<number | null>(null)
+  const [latestCall, setLatestCall] = useState<LatestCall | null>(null)
+  const [recentCalls, setRecentCalls] = useState<Record<string, true>>({})
 
-  // A wall clock so the display is visibly alive even when the queue is still.
+  // The last token announced, per doctor. A map rather than one value, because
+  // two doctors can be called at almost the same moment.
+  const announcedRef = useRef<Map<string, number | null>>(new Map())
+  const latestCallRef = useRef<LatestCall | null>(null)
+  const highlightTimersRef = useRef<Map<string, number>>(new Map())
+
+  const allIdle =
+    doctors.length === 0 ||
+    doctors.every((doctor) => doctor.current_token === null && doctor.next_token === null)
+
+  // Do not rotate behind the empty-queue screen: when the first patient is
+  // called, the TV should start on page one, not wherever the idle timer left it.
+  const pages = useMemo(
+    () => (allIdle ? [] : buildDoctorPages(doctors)),
+    [allIdle, doctors],
+  )
+  const signature = useMemo(
+    () => displaySignature(doctors, (doctor) => doctor.doctor_id ?? ''),
+    [doctors],
+  )
+  const { pageIndex, pageCount, pageItems, rotating } = usePageRotation(pages, signature)
+  const dense = pageItems.length >= 4
+
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 20_000)
     return () => window.clearInterval(timer)
   }, [])
 
-  const currentToken = data?.current_token ?? null
-  const roomNumber = data?.room_number ?? ''
+  const rememberCall = useCallback(
+    (doctor: PublicHospitalQueueRow, token: number, highlight = true) => {
+      const doctorId = doctor.doctor_id
+      if (!doctorId) return
+
+      const call: LatestCall = {
+        doctorId,
+        doctorName: doctor.doctor_name ?? '',
+        token,
+        roomNumber: doctor.room_number,
+      }
+      latestCallRef.current = call
+      setLatestCall(call)
+      if (!highlight) return
+
+      setRecentCalls((previous) =>
+        previous[doctorId] ? previous : { ...previous, [doctorId]: true },
+      )
+
+      const existing = highlightTimersRef.current.get(doctorId)
+      if (existing !== undefined) window.clearTimeout(existing)
+
+      const timer = window.setTimeout(() => {
+        highlightTimersRef.current.delete(doctorId)
+        setRecentCalls((previous) => {
+          if (!previous[doctorId]) return previous
+          const next = { ...previous }
+          delete next[doctorId]
+          return next
+        })
+      }, HIGHLIGHT_DURATION_MS)
+
+      highlightTimersRef.current.set(doctorId, timer)
+    },
+    [],
+  )
 
   useEffect(() => {
-    if (currentToken === null) return
-
-    // Skip the first sighting — on page load this is the token that was already
-    // being served, and announcing it would be noise, not news.
-    if (announcedRef.current === null) {
-      announcedRef.current = currentToken
-      return
+    return () => {
+      for (const timer of highlightTimersRef.current.values()) {
+        window.clearTimeout(timer)
+      }
+      highlightTimersRef.current.clear()
     }
-    if (announcedRef.current === currentToken) return
+  }, [])
 
-    announcedRef.current = currentToken
-    speak(messages.announcement(currentToken, roomNumber), { language })
-  }, [currentToken, language, messages, roomNumber])
+  useEffect(() => {
+    const announced = announcedRef.current
+    const present = new Set<string>()
+
+    for (const doctor of doctors) {
+      if (!doctor.doctor_id) continue
+      present.add(doctor.doctor_id)
+
+      const token = doctor.current_token
+      if (token === null) {
+        // Remember the doctor as seen, so their first call after an idle period
+        // is announced rather than mistaken for the page-load token.
+        announced.set(doctor.doctor_id, null)
+        continue
+      }
+
+      const previous = announced.get(doctor.doctor_id)
+
+      if (previous === undefined) {
+        announced.set(doctor.doctor_id, token)
+        // Seed the banner with the call already on screen when the TV loads,
+        // but do not highlight a card for a call that may be long finished.
+        if (latestCallRef.current === null) rememberCall(doctor, token, false)
+        continue
+      }
+
+      if (previous === token) {
+        // A rename or room change should update the banner without making it
+        // look like a new call.
+        if (latestCallRef.current?.doctorId === doctor.doctor_id) {
+          const current = latestCallRef.current
+          const name = doctor.doctor_name ?? ''
+          if (current.doctorName !== name || current.roomNumber !== doctor.room_number) {
+            const updated = { ...current, doctorName: name, roomNumber: doctor.room_number }
+            latestCallRef.current = updated
+            setLatestCall(updated)
+          }
+        }
+        continue
+      }
+
+      announced.set(doctor.doctor_id, token)
+      rememberCall(doctor, token)
+      enqueueSpeech(messages.announcement(token, doctor.room_number ?? ''), {
+        language,
+        key: doctor.doctor_id,
+      })
+    }
+
+    // A deactivated or deleted doctor must not leave a stale banner behind.
+    if (latestCallRef.current && !present.has(latestCallRef.current.doctorId)) {
+      latestCallRef.current = null
+      setLatestCall(null)
+    }
+
+    for (const id of announced.keys()) {
+      if (!present.has(id)) announced.delete(id)
+    }
+  }, [doctors, language, messages, rememberCall])
 
   if (loading) {
     return (
@@ -71,14 +188,14 @@ export function DisplayPage() {
     )
   }
 
-  if (notFound || error || !data) {
+  if (notFound || error || !hospital) {
     return (
       <DisplayLayout>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
           <p className="text-3xl font-bold">{error ?? t.unavailable}</p>
           <p className="text-lg text-slate-400">{t.checkUrl}</p>
-          {doctorId ? (
-            <p className="text-sm text-slate-500">{displayUrl(doctorId)}</p>
+          {hospitalId ? (
+            <p className="text-sm text-slate-500">{displayUrl(hospitalId)}</p>
           ) : null}
         </div>
       </DisplayLayout>
@@ -87,25 +204,28 @@ export function DisplayPage() {
 
   // The RPC returns the hospital's own timezone, so a display screen never has
   // to assume which clinic it belongs to.
-  const timezone = data.hospital_timezone || DEFAULT_TIME_ZONE
-  const queueEmpty = data.current_token === null && data.next_token === null
+  const timezone = hospital.hospital_timezone || DEFAULT_TIME_ZONE
 
   return (
     <DisplayLayout>
-      {/* ---- Header ------------------------------------------------------- */}
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700 px-8 py-5">
-        <div className="flex flex-col">
-          <p className="text-2xl font-extrabold tracking-wide text-white sm:text-3xl">
-            {data.hospital_name}
+      <header className="display-header flex shrink-0 items-center justify-between gap-4 border-b border-slate-700 px-4 py-4 sm:px-8">
+        <div className="flex min-w-0 flex-col">
+          <p className="truncate text-xl font-extrabold tracking-wide text-white sm:text-2xl">
+            {hospital.hospital_name}
           </p>
-          <p className="mt-0.5 text-base text-slate-400">
+          <p className="display-date mt-0.5 text-sm text-slate-400">
             {messages.dateWithWeekday(now, timezone)}
           </p>
         </div>
 
-        <div className="flex items-center gap-6">
-          <p className="token-digits flex items-center gap-2 text-2xl font-bold text-slate-300">
-            <Clock className="size-6" aria-hidden="true" />
+        <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+          {rotating && !allIdle ? (
+            <p className="token-digits rounded-full bg-slate-800 px-3 py-1 text-base font-bold text-slate-300">
+              {messages.count(pageIndex + 1)} / {messages.count(pageCount)}
+            </p>
+          ) : null}
+          <p className="token-digits flex items-center gap-2 text-lg font-bold text-slate-300 sm:text-xl">
+            <Clock className="size-5" aria-hidden="true" />
             {messages.time(now, timezone)}
           </p>
           <LanguageSwitcher tone="dark" className="no-print" />
@@ -113,74 +233,45 @@ export function DisplayPage() {
         </div>
       </header>
 
-      {/* ---- Doctor ------------------------------------------------------- */}
-      <div className="border-b border-slate-700 px-8 py-6">
-        <p className="text-3xl font-extrabold text-brand-300 sm:text-4xl">{data.doctor_name}</p>
-        <p className="mt-1 text-xl text-slate-300">
-          {data.department}
-          {data.room_number ? ` · ${messages.roomShort(data.room_number)}` : ''}
-        </p>
-      </div>
+      <NowCallingBanner call={latestCall} />
 
-      {/* ---- The tokens --------------------------------------------------- */}
-      <main className="flex flex-1 flex-col items-center justify-center px-8 py-10">
-        {queueEmpty ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <p className="text-4xl font-bold text-slate-300">{t.emptyQueue}</p>
-            <p className="text-xl text-slate-500">{data.display_message}</p>
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-3 sm:px-8">
+        {allIdle ? (
+          <div className="flex flex-col items-center gap-4 px-4 text-center">
+            <p className="text-3xl font-bold text-slate-300 sm:text-4xl">{t.emptyQueue}</p>
+            <p className="text-lg text-slate-500 sm:text-xl">{hospital.display_message}</p>
           </div>
         ) : (
-          <div className="grid w-full max-w-7xl flex-1 items-center gap-10 lg:grid-cols-[2fr_1fr]">
-            {/* Current token — the one thing readable from the far wall. */}
-            <div className="flex flex-col items-center justify-center rounded-3xl bg-slate-800 px-6 py-10">
-              <p className="mb-4 text-2xl font-bold tracking-wide text-brand-300 uppercase sm:text-3xl">
-                {t.currentLabel}
-              </p>
-              <div aria-live="polite" aria-atomic="true">
-                <TokenDisplay token={data.current_token} size="display" tone="light" emptyText="—" />
-              </div>
-              {data.current_token !== null && data.room_number ? (
-                <p className="mt-6 text-3xl font-bold text-brand-200 sm:text-4xl">
-                  {messages.roomShort(data.room_number)}
-                </p>
-              ) : null}
-            </div>
-
-            {/* Next token */}
-            <div className="flex flex-col items-center justify-center gap-6 rounded-3xl bg-slate-800/60 px-6 py-10">
-              <div className="flex flex-col items-center">
-                <p className="mb-3 text-xl font-bold tracking-wide text-slate-400 uppercase">
-                  {t.nextLabel}
-                </p>
-                <div className="text-slate-200">
-                  <TokenDisplay
-                    token={data.next_token}
-                    size="xl"
-                    tone="light"
-                    animate={false}
-                    emptyText="—"
-                  />
-                </div>
-              </div>
-
-              <div className="h-px w-full bg-slate-700" />
-
-              <div className="flex flex-col items-center">
-                <p className="text-xl font-bold tracking-wide text-slate-400 uppercase">
-                  {t.waitingLabel}
-                </p>
-                <p className="token-digits mt-1 text-6xl font-extrabold text-white">
-                  {messages.count(data.waiting_count)}
-                </p>
-              </div>
+          <div
+            key={pageIndex}
+            className="display-page-enter flex min-h-0 w-full flex-1 items-center justify-center"
+          >
+            <div
+              className={cn(
+                'grid w-full content-center',
+                dense ? 'gap-3' : 'gap-5',
+                gridClassFor(pageItems.length),
+              )}
+            >
+              {pageItems.map((doctor, index) => (
+                <DoctorCard
+                  key={doctor.doctor_id ?? `${doctor.doctor_name ?? 'doctor'}-${index}`}
+                  doctor={doctor}
+                  messages={messages}
+                  dense={dense}
+                  highlighted={Boolean(doctor.doctor_id && recentCalls[doctor.doctor_id])}
+                  className={cardClassFor(index, pageItems.length)}
+                />
+              ))}
             </div>
           </div>
         )}
       </main>
 
-      {/* ---- Footer ------------------------------------------------------- */}
-      <footer className="border-t border-slate-700 px-8 py-5 text-center">
-        <p className="text-2xl font-semibold text-slate-300">{data.display_message}</p>
+      <footer className="display-footer shrink-0 border-t border-slate-700 px-4 py-3 text-center sm:px-8">
+        <p className="truncate text-lg font-semibold text-slate-300 sm:text-xl">
+          {hospital.display_message}
+        </p>
       </footer>
     </DisplayLayout>
   )

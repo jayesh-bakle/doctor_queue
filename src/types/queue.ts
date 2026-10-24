@@ -42,4 +42,6 @@ export interface QueueEntryView {
   status: QueueStatus
   createdAt: string
   calledAt: string | null
+  /** Server-side timestamp used as the delta cursor for live dashboard refreshes. */
+  updatedAt: string
 }

@@ -5,11 +5,10 @@ import { useSearchParams } from 'react-router-dom'
 
 import { Button } from '../components/common/Button'
 import { Card, CardBody, CardHeader } from '../components/common/Card'
-import { EmptyState } from '../components/common/Feedback'
 import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
-import { hospitalRegistrationUrl, hospitalStaffLoginUrl, siteOrigin } from '../lib/env'
+import { displayUrl, hospitalRegistrationUrl, hospitalStaffLoginUrl, siteOrigin } from '../lib/env'
 import { logTechnicalError } from '../lib/errors'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -35,6 +34,7 @@ export function QRPage() {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [qrError, setQrError] = useState(false)
   const [loginLinkCopied, setLoginLinkCopied] = useState(false)
+  const [displayLinkCopied, setDisplayLinkCopied] = useState(false)
 
   // One poster per clinic. The hospital id in the path is what makes the scan
   // land on this hospital's queue rather than an ambiguous /register. The
@@ -106,6 +106,17 @@ export function QRPage() {
       window.setTimeout(() => setLoginLinkCopied(false), 2000)
     } catch (caught) {
       logTechnicalError('QRPage — copy staff login link', caught)
+    }
+  }
+
+  const handleCopyDisplayLink = async () => {
+    if (!hospital) return
+    try {
+      await navigator.clipboard.writeText(displayUrl(hospital.id))
+      setDisplayLinkCopied(true)
+      window.setTimeout(() => setDisplayLinkCopied(false), 2000)
+    } catch (caught) {
+      logTechnicalError('QRPage — copy display link', caught)
     }
   }
 
@@ -233,23 +244,20 @@ export function QRPage() {
         <Card className="no-print">
           <CardHeader title={t.displayLinksTitle} description={t.displayLinksDescription} />
           <CardBody>
-            {doctors.length === 0 ? (
-              <EmptyState title={t.noDoctorsTitle} description={t.noDoctorsDescription} />
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {doctors.map((doctor) => (
-                  <li
-                    key={doctor.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
-                  >
-                    <span className="text-sm font-semibold text-slate-800">{doctor.name}</span>
-                    <code className="font-mono text-xs break-all text-slate-600">
-                      {`${origin}/display/${doctor.id}`}
-                    </code>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {hospital ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                <code className="font-mono text-xs break-all text-slate-600">
+                  {displayUrl(hospital.id)}
+                </code>
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleCopyDisplayLink()}
+                  icon={<Copy className="size-4" aria-hidden="true" />}
+                >
+                  {displayLinkCopied ? t.copied : t.copyLink}
+                </Button>
+              </div>
+            ) : null}
           </CardBody>
         </Card>
 

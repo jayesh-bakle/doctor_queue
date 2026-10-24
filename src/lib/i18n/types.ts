@@ -214,6 +214,7 @@ export interface UiMessages {
     unavailable: string
     checkUrl: string
     emptyQueue: string
+    nowCalling: string
     currentLabel: string
     nextLabel: string
     waitingLabel: string
@@ -267,6 +268,8 @@ export interface UiMessages {
     doctorLegend: string
     patientTypeLegend: string
     privacyNote: string
+    /** Shown when the security check has not been completed. */
+    captchaRequired: string
     submitting: string
     submit: string
   }

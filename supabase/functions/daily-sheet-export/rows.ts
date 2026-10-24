@@ -114,6 +114,45 @@ export function recentDates(
   return result
 }
 
+/** The month a queue date belongs to, as 'YYYY-MM'. */
+export function monthKey(queueDate: string): string {
+  return queueDate.slice(0, 7)
+}
+
+/**
+ * One tab per month, e.g. `Queue 2026-10`.
+ *
+ * A single tab has a 10,000,000-cell limit. At 2,000 patients/day × 12 columns
+ * that is only ~14 months, so the exporter rotates to a new tab each month.
+ * The configured `tab` value is the prefix, which keeps the clinic's chosen
+ * name while making the month obvious to staff.
+ *
+ * Google Sheets forbids `[ ] * ? / \ :` in tab titles and allows at most 100
+ * characters, so the prefix is sanitized and shortened rather than letting the
+ * whole export fail on a bad mapping.
+ */
+export function monthlyTab(base: string, month: string): string {
+  const suffix = ` ${month}`
+  const sanitized = (base.trim() || 'Queue')
+    .replace(/[\[\]*?\/\\:]/g, '-')
+    .slice(0, Math.max(1, 100 - suffix.length))
+  return `${sanitized}${suffix}`
+}
+
+/** Groups entries by `YYYY-MM`, preserving the input order inside each group. */
+export function groupEntriesByMonth(
+  entries: ReadonlyArray<ExportEntry>,
+): Map<string, ExportEntry[]> {
+  const groups = new Map<string, ExportEntry[]>()
+  for (const entry of entries) {
+    const month = monthKey(entry.queueDate)
+    const group = groups.get(month)
+    if (group) group.push(entry)
+    else groups.set(month, [entry])
+  }
+  return groups
+}
+
 /** Chronological, then by doctor's configured order, then by token. */
 export function sortForSheet(entries: ReadonlyArray<ExportEntry>): ExportEntry[] {
   return [...entries].sort((a, b) => {
