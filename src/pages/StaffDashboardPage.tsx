@@ -13,6 +13,8 @@ import { useDoctors } from '../hooks/useDoctors'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
 import { useQueue } from '../hooks/useQueue'
+import { useTodaySummary } from '../hooks/useAnalytics'
+import { hourLabel, secondsToMinutes } from '../lib/analytics'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
@@ -51,6 +53,7 @@ export function StaffDashboardPage() {
   const activeDoctor = doctors.find((d) => d.id === activeDoctorId) ?? null
 
   const { entries, loading, error, refresh } = useQueue(activeDoctorId, queueDate)
+  const today = useTodaySummary(hospital?.id ?? null)
 
   const snapshot = useMemo(() => deriveSnapshot(entries), [entries])
   const nextWaitingToken = useMemo(() => findNextWaitingToken(entries), [entries])
@@ -165,6 +168,75 @@ export function StaffDashboardPage() {
     <StaffLayout>
       <div className="flex flex-col gap-5">
         <DemoBanner doctorId={activeDoctorId} onChanged={handleDoctorChanged} />
+
+        {/* ---- Today at a glance (all doctors) --------------------------- */}
+        {hospital ? (
+          <Card>
+            <CardHeader title={t.todayAtAGlance} description={t.todayHint} />
+            <CardBody>
+              {today.loading ? (
+                <p className="py-2 text-sm text-slate-500">{t.todayLoading}</p>
+              ) : today.error ? (
+                <p className="py-2 text-sm text-red-700">{today.error}</p>
+              ) : today.data ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todayRegistered}
+                    </p>
+                    <p className="token-digits mt-1 text-2xl font-extrabold text-slate-900">
+                      {messages.count(today.data.registered)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todayCompleted}
+                    </p>
+                    <p className="token-digits mt-1 text-2xl font-extrabold text-slate-900">
+                      {messages.count(today.data.completed)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todayWaiting}
+                    </p>
+                    <p className="token-digits mt-1 text-2xl font-extrabold text-slate-900">
+                      {messages.count(today.data.waiting)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todaySkipped}
+                    </p>
+                    <p className="token-digits mt-1 text-2xl font-extrabold text-slate-900">
+                      {messages.count(today.data.skipped)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todayAvgWait}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {today.data.avgWaitSeconds === null
+                        ? messages.ui.common.notProvided
+                        : messages.minutes(secondsToMinutes(today.data.avgWaitSeconds) ?? 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      {t.todayPeakHour}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">
+                      {today.data.peakHour === null
+                        ? messages.ui.common.notProvided
+                        : hourLabel(today.data.peakHour, messages)}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+            </CardBody>
+          </Card>
+        ) : null}
 
         {/* ---- Doctor selector ------------------------------------------- */}
         {doctors.length > 1 ? (

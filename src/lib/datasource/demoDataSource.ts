@@ -37,6 +37,15 @@ import type {
   TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
+import type {
+  AnalyticsDailyPoint,
+  AnalyticsDoctorPoint,
+  AnalyticsHourlyPoint,
+  AnalyticsSummary,
+  HospitalAnalytics,
+  PlatformAnalytics,
+  TodaySummary,
+} from '../../types/analytics'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
 import { AppError } from '../errors'
 import {
@@ -194,6 +203,377 @@ async function withLock<T>(name: string, fn: () => T | Promise<T>): Promise<T> {
 /** Today's queue date in the hospital's timezone. */
 function currentQueueDate(state: DemoState): string {
   return todayInTimeZone(state.hospital.timezone)
+}
+
+// ---------------------------------------------------------------------------
+// Demo analytics
+// ---------------------------------------------------------------------------
+//
+// The demo has no server and no nightly aggregate job. It keeps today's real
+// queue in localStorage, then fills earlier days with a deterministic synthetic
+// history so the charts have something to show after a reset. Synthetic rows are
+// aggregates only, never names, and are derived from a hash of the date and
+// doctor id so they do not jump around on every render.
+
+function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function datesBetween(from: string, to: string): string[] {
+  if (!from || !to || from > to) return []
+  const dates: string[] = []
+  for (let date = from; date <= to; date = addDays(date, 1)) {
+    dates.push(date)
+    if (dates.length > 366) break
+  }
+  return dates
+}
+
+function hashText(value: string): number {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function hourInTimeZone(iso: string, timeZone: string): number {
+  const hour = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
+  }).format(new Date(iso))
+  return Number(hour) % 24
+}
+
+interface DemoSyntheticDay {
+  registered: number
+  newPatients: number
+  followupPatients: number
+  completed: number
+  skipped: number
+  waiting: number
+  called: number
+  avgWaitSeconds: number
+  avgConsultSeconds: number
+}
+
+function syntheticDay(date: string, doctorId: string): DemoSyntheticDay {
+  const seed = hashText(`${date}:${doctorId}`)
+  const registered = 12 + (seed % 24)
+  const newPatients = Math.max(1, Math.round(registered * (0.55 + (seed % 9) / 100)))
+  const followupPatients = registered - newPatients
+  const completed = Math.max(0, Math.round(registered * (0.78 + (seed % 12) / 100)))
+  const skipped = Math.max(0, Math.min(registered - completed, seed % 4))
+  return {
+    registered,
+    newPatients,
+    followupPatients,
+    completed,
+    skipped,
+    waiting: 0,
+    called: 0,
+    avgWaitSeconds: 420 + (seed % 900),
+    avgConsultSeconds: 240 + (seed % 480),
+  }
+}
+
+/** Distributes a day's registrations over clinic hours without losing a count. */
+function syntheticHours(registered: number, seed: number): number[] {
+  const weights = [3, 7, 12, 15, 14, 12, 10, 8, 5, 3]
+  const totalWeight = weights.reduce((total, weight) => total + weight, 0)
+  const hours = Array.from({ length: 24 }, () => 0)
+  let assigned = 0
+  weights.forEach((weight, index) => {
+    const value = Math.floor((registered * weight) / totalWeight)
+    hours[9 + index] = value
+    assigned += value
+  })
+  let remainder = registered - assigned
+  let index = seed % weights.length
+  while (remainder > 0) {
+    hours[9 + (index % weights.length)] += 1
+    index += 1
+    remainder -= 1
+  }
+  return hours
+}
+
+function actualDay(
+  state: DemoState,
+  date: string,
+  doctorId: string | null,
+): DemoSyntheticDay {
+  const entries = state.entries.filter(
+    (entry) =>
+      entry.queue_date === date &&
+      (doctorId === null || entry.doctor_id === doctorId),
+  )
+  const called = entries.filter(
+    (entry) => entry.status === 'CALLED' || entry.status === 'IN_CONSULTATION',
+  )
+  const completed = entries.filter((entry) => entry.status === 'COMPLETED')
+  const skipped = entries.filter((entry) => entry.status === 'SKIPPED')
+
+  const waitSeconds = entries
+    .filter((entry) => entry.called_at !== null)
+    .map((entry) => (new Date(entry.called_at as string).getTime() - new Date(entry.created_at).getTime()) / 1000)
+    .filter((seconds) => Number.isFinite(seconds) && seconds >= 0)
+  const consultSeconds = entries
+    .filter((entry) => entry.called_at !== null && entry.completed_at !== null)
+    .map(
+      (entry) =>
+        (new Date(entry.completed_at as string).getTime() -
+          new Date(entry.called_at as string).getTime()) /
+        1000,
+    )
+    .filter((seconds) => Number.isFinite(seconds) && seconds >= 0)
+
+  return {
+    registered: entries.length,
+    newPatients: entries.filter((entry) => entry.patient_type === 'NEW').length,
+    followupPatients: entries.filter((entry) => entry.patient_type === 'FOLLOWUP').length,
+    completed: completed.length,
+    skipped: skipped.length,
+    waiting: entries.filter((entry) => entry.status === 'WAITING').length,
+    called: called.length,
+    avgWaitSeconds: waitSeconds.length
+      ? Math.round(waitSeconds.reduce((total, seconds) => total + seconds, 0) / waitSeconds.length)
+      : 0,
+    avgConsultSeconds: consultSeconds.length
+      ? Math.round(
+          consultSeconds.reduce((total, seconds) => total + seconds, 0) /
+            consultSeconds.length,
+        )
+      : 0,
+  }
+}
+
+function dayFor(
+  state: DemoState,
+  date: string,
+  today: string,
+  doctorId: string | null,
+): DemoSyntheticDay {
+  if (date === today) return actualDay(state, date, doctorId)
+  if (doctorId) return syntheticDay(date, doctorId)
+
+  const doctors = state.doctors
+  if (doctors.length === 0) return actualDay(state, date, null)
+
+  const rows = doctors.map((doctor) => syntheticDay(date, doctor.id))
+  return {
+    registered: rows.reduce((total, day) => total + day.registered, 0),
+    newPatients: rows.reduce((total, day) => total + day.newPatients, 0),
+    followupPatients: rows.reduce((total, day) => total + day.followupPatients, 0),
+    completed: rows.reduce((total, day) => total + day.completed, 0),
+    skipped: rows.reduce((total, day) => total + day.skipped, 0),
+    waiting: 0,
+    called: 0,
+    avgWaitSeconds:
+      weightedAverage(
+        rows.map((day) => ({ value: day.avgWaitSeconds, weight: day.registered })),
+      ) ?? 0,
+    avgConsultSeconds:
+      weightedAverage(
+        rows.map((day) => ({ value: day.avgConsultSeconds, weight: day.registered })),
+      ) ?? 0,
+  }
+}
+
+function weightedAverage(values: Array<{ value: number | null; weight: number }>): number | null {
+  const weighted = values.filter((entry) => entry.value !== null && entry.weight > 0)
+  const weight = weighted.reduce((total, entry) => total + entry.weight, 0)
+  if (weight === 0) return null
+  return Math.round(
+    weighted.reduce((total, entry) => total + (entry.value as number) * entry.weight, 0) / weight,
+  )
+}
+
+function demoHourly(
+  state: DemoState,
+  dates: string[],
+  today: string,
+  doctorId: string | null,
+): AnalyticsHourlyPoint[] {
+  const hours = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    registered: 0,
+    completed: 0,
+    skipped: 0,
+  }))
+
+  for (const date of dates) {
+    if (date === today) {
+      const entries = state.entries.filter(
+        (entry) =>
+          entry.queue_date === date &&
+          (doctorId === null || entry.doctor_id === doctorId),
+      )
+      for (const entry of entries) {
+        const hour = hourInTimeZone(entry.created_at, state.hospital.timezone)
+        hours[hour].registered += 1
+        if (entry.status === 'COMPLETED') hours[hour].completed += 1
+        if (entry.status === 'SKIPPED') hours[hour].skipped += 1
+      }
+      continue
+    }
+
+    const doctors = doctorId
+      ? state.doctors.filter((doctor) => doctor.id === doctorId)
+      : state.doctors
+    for (const doctor of doctors) {
+      const day = syntheticDay(date, doctor.id)
+      const seed = hashText(`${date}:${doctor.id}:hours`)
+      const distribution = syntheticHours(day.registered, seed)
+      distribution.forEach((count, hour) => {
+        hours[hour].registered += count
+        hours[hour].completed += Math.round(count * 0.8)
+        hours[hour].skipped += count > 8 && (seed + hour) % 7 === 0 ? 1 : 0
+      })
+    }
+  }
+
+  return hours
+}
+
+function demoAnalytics(
+  state: DemoState,
+  hospitalId: string,
+  from: string,
+  to: string,
+  doctorId: string | null,
+): HospitalAnalytics {
+  if (state.hospital.id !== hospitalId) {
+    return {
+      summary: {
+        registered: 0,
+        newPatients: 0,
+        followupPatients: 0,
+        completed: 0,
+        skipped: 0,
+        waiting: 0,
+        called: 0,
+        avgWaitSeconds: null,
+        avgConsultSeconds: null,
+        peakHour: null,
+      },
+      daily: [],
+      doctors: [],
+      hourly: [],
+    }
+  }
+
+  const today = currentQueueDate(state)
+  const dates = datesBetween(from, to).filter((date) => date <= today)
+  const daily: AnalyticsDailyPoint[] = dates.map((date) => {
+    const day = dayFor(state, date, today, doctorId)
+    return {
+      date,
+      registered: day.registered,
+      newPatients: day.newPatients,
+      followupPatients: day.followupPatients,
+      completed: day.completed,
+      skipped: day.skipped,
+      waiting: day.waiting,
+      called: day.called,
+      avgWaitSeconds: day.avgWaitSeconds || null,
+      avgConsultSeconds: day.avgConsultSeconds || null,
+      peakHour: null,
+    }
+  })
+
+  const doctors: AnalyticsDoctorPoint[] = state.doctors
+    .filter((doctor) => doctorId === null || doctor.id === doctorId)
+    .map((doctor) => {
+      const rows = dates.map((date) => dayFor(state, date, today, doctor.id))
+      return {
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        registered: rows.reduce((total, day) => total + day.registered, 0),
+        completed: rows.reduce((total, day) => total + day.completed, 0),
+        skipped: rows.reduce((total, day) => total + day.skipped, 0),
+        avgWaitSeconds: weightedAverage(
+          rows.map((day) => ({ value: day.avgWaitSeconds || null, weight: day.registered })),
+        ),
+        avgConsultSeconds: weightedAverage(
+          rows.map((day) => ({ value: day.avgConsultSeconds || null, weight: day.registered })),
+        ),
+      }
+    })
+    .filter((doctor) => doctor.registered > 0)
+    .sort((a, b) => b.registered - a.registered || a.doctorName.localeCompare(b.doctorName, 'en'))
+
+  const hourly = demoHourly(state, dates, today, doctorId)
+  const peak = hourly.reduce<AnalyticsHourlyPoint | null>(
+    (best, point) =>
+      point.registered > 0 && (!best || point.registered > best.registered) ? point : best,
+    null,
+  )
+
+  const summary: AnalyticsSummary = {
+    registered: daily.reduce((total, day) => total + day.registered, 0),
+    newPatients: daily.reduce((total, day) => total + day.newPatients, 0),
+    followupPatients: daily.reduce((total, day) => total + day.followupPatients, 0),
+    completed: daily.reduce((total, day) => total + day.completed, 0),
+    skipped: daily.reduce((total, day) => total + day.skipped, 0),
+    waiting: daily.reduce((total, day) => total + day.waiting, 0),
+    called: daily.reduce((total, day) => total + day.called, 0),
+    avgWaitSeconds: weightedAverage(
+      daily.map((day) => ({ value: day.avgWaitSeconds, weight: day.registered })),
+    ),
+    avgConsultSeconds: weightedAverage(
+      daily.map((day) => ({ value: day.avgConsultSeconds, weight: day.registered })),
+    ),
+    peakHour: peak?.hour ?? null,
+  }
+
+  return { summary, daily, doctors, hourly }
+}
+
+function demoTodaySummary(state: DemoState, hospitalId: string): TodaySummary {
+  const date = currentQueueDate(state)
+  if (state.hospital.id !== hospitalId) {
+    return {
+      date,
+      registered: 0,
+      newPatients: 0,
+      followupPatients: 0,
+      completed: 0,
+      skipped: 0,
+      waiting: 0,
+      called: 0,
+      avgWaitSeconds: null,
+      avgConsultSeconds: null,
+      peakHour: null,
+    }
+  }
+
+  const day = actualDay(state, date, null)
+  const hourly = demoHourly(state, [date], date, null)
+  const peak = hourly.reduce<AnalyticsHourlyPoint | null>(
+    (best, point) =>
+      point.registered > 0 && (!best || point.registered > best.registered) ? point : best,
+    null,
+  )
+
+  return {
+    date,
+    registered: day.registered,
+    newPatients: day.newPatients,
+    followupPatients: day.followupPatients,
+    completed: day.completed,
+    skipped: day.skipped,
+    waiting: day.waiting,
+    called: day.called,
+    avgWaitSeconds: day.avgWaitSeconds || null,
+    avgConsultSeconds: day.avgConsultSeconds || null,
+    peakHour: peak?.hour ?? null,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -413,7 +793,10 @@ function readSession(): StaffSession | null {
   if (typeof sessionStorage === 'undefined') return null
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as StaffSession) : null
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StaffSession
+    // Sessions saved by an older demo build predate the platform-admin flag.
+    return { ...parsed, isPlatformAdmin: parsed.isPlatformAdmin === true }
   } catch {
     return null
   }
@@ -610,9 +993,13 @@ export const demoDataSource: QueueDataSource = {
     const session: StaffSession = {
       userId: 'demo-staff-user',
       email: DEMO_CREDENTIALS.email,
-      fullName: 'Reception (demo)',
-      role: 'RECEPTION' as StaffRole,
+      fullName: 'Administrator (demo)',
+      // ADMIN and platform admin so the demo can show the analytics screens.
+      // The real backend derives both from SQL; the demo account is deliberately
+      // the most privileged one so every screen can be explored.
+      role: 'ADMIN' as StaffRole,
       hospitalId: state.hospital.id,
+      isPlatformAdmin: true,
     }
 
     writeSession(session)
@@ -758,6 +1145,58 @@ export const demoDataSource: QueueDataSource = {
     }
     writeState(state)
     broadcast('*')
+  },
+
+  // ---- analytics --------------------------------------------------------
+
+  async getTodaySummary(hospitalId: string): Promise<TodaySummary> {
+    return demoTodaySummary(readState(), hospitalId)
+  },
+
+  async getHospitalAnalytics(
+    hospitalId: string,
+    from: string,
+    to: string,
+    doctorId?: string | null,
+  ): Promise<HospitalAnalytics> {
+    return demoAnalytics(readState(), hospitalId, from, to, doctorId ?? null)
+  },
+
+  async getPlatformAnalytics(from: string, to: string): Promise<PlatformAnalytics> {
+    const state = readState()
+    const hospital = demoAnalytics(
+      state,
+      state.hospital.id,
+      from,
+      to,
+      null,
+    )
+
+    return {
+      summary: hospital.summary,
+      daily: hospital.daily.map((day) => ({
+        date: day.date,
+        registered: day.registered,
+        completed: day.completed,
+        skipped: day.skipped,
+        newPatients: day.newPatients,
+        followupPatients: day.followupPatients,
+        avgWaitSeconds: day.avgWaitSeconds,
+        avgConsultSeconds: day.avgConsultSeconds,
+      })),
+      hospitals: [
+        {
+          hospitalId: state.hospital.id,
+          hospitalName: state.hospital.name,
+          registered: hospital.summary.registered,
+          completed: hospital.summary.completed,
+          skipped: hospital.summary.skipped,
+          avgWaitSeconds: hospital.summary.avgWaitSeconds,
+          avgConsultSeconds: hospital.summary.avgConsultSeconds,
+        },
+      ],
+      hourly: hospital.hourly,
+    }
   },
 
   // ---- realtime ---------------------------------------------------------

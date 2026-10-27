@@ -45,7 +45,7 @@ then the `create schema` and grants as a second query.
 
 ---
 
-## 2. Rebuild the structure — all ten migrations, in this order
+## 2. Rebuild the structure — all eleven migrations, in this order
 
 For each file: open `supabase/migrations/<file>`, copy the **entire** file into the SQL Editor, and
 run it. Wait for success before starting the next one.
@@ -60,12 +60,15 @@ run it. Wait for success before starting the next one.
 8. `008_daily_token_cap.sql`
 9. `009_hospital_changes.sql`
 10. `010_big_hospital_hardening.sql`
+11. `011_analytics.sql`
 
 Order matters: 003, 006, 007 and 008 drop and recreate overlapping RPCs, so run them in this
 order. 009 adds the doctor-change signal used by the TV and recreates `prune_queue_history()` to
 prune that signal table too. 010 raises the default daily cap to 2,000 and adds the export anti-join
-used by `daily-sheet-export`. Do not run the `revoke execute on register_patient` statement at the
-bottom of 008 until the `register-patient` Edge Function is deployed (README section 8).
+used by `daily-sheet-export`. 011 adds the analytics tables, platform admins, read RPCs and the
+90-day backfill; it depends on 009 and 010. If `pg_cron` is installed, 011 also schedules the
+refresh jobs (README section 18). Do not run the `revoke execute on register_patient` statement at
+the bottom of 008 until the `register-patient` Edge Function is deployed (README section 8).
 
 **Do not run `supabase/seed.sql` for a real deployment.** It inserts the sample
 "श्री गणेश हॉस्पिटल" and two demo doctors; it is only for local demos.
@@ -148,6 +151,21 @@ values
 
 Only `'RECEPTION'` or `'ADMIN'` is accepted. A user with no `staff_users` row can authenticate
 but is refused by the app — that is the intended safety behaviour.
+
+### Platform owner (optional)
+
+The platform owner can see every hospital at `/admin`. Create the login in **Authentication → Users**,
+link it to any hospital with a normal `staff_users` row (the app still requires a staff row to sign
+in), then add the same UID to `platform_admins`:
+
+```sql
+insert into platform_admins (user_id)
+values ('<owner-auth-user-id>')
+on conflict (user_id) do nothing;
+```
+
+A hospital `ADMIN` sees only `/staff/analytics` for its own hospital. A `RECEPTION` account sees
+only today's summary on the dashboard.
 
 ---
 

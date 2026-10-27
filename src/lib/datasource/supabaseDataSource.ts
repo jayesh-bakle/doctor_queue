@@ -21,6 +21,11 @@ import type {
   TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
+import type {
+  HospitalAnalytics,
+  PlatformAnalytics,
+  TodaySummary,
+} from '../../types/analytics'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
 import { isTurnstileEnabled } from '../env'
 import { AppError, isKnownErrorCode, logTechnicalError, toAppError } from '../errors'
@@ -75,12 +80,21 @@ async function fetchStaffSession(): Promise<StaffSession | null> {
   }
   if (!data) return null
 
+  // The RPC is added by 011_analytics.sql. Before that migration is applied the
+  // call fails; treat that as "not a platform admin" so normal staff login keeps
+  // working while a project is being upgraded.
+  const { data: platformAdmin, error: platformError } = await supabase.rpc('is_platform_admin')
+  if (platformError) {
+    logTechnicalError('fetchStaffSession — platform admin check', platformError)
+  }
+
   return {
     userId: data.id,
     email: userData.user.email ?? '',
     fullName: data.full_name,
     role: data.role,
     hospitalId: data.hospital_id,
+    isPlatformAdmin: platformAdmin === true,
   }
 }
 
@@ -459,6 +473,42 @@ export const supabaseDataSource: QueueDataSource = {
       logTechnicalError('updateHospital', error)
       throw toAppError(error)
     }
+  },
+
+  // ---- analytics --------------------------------------------------------
+
+  async getTodaySummary(hospitalId: string): Promise<TodaySummary> {
+    return callRpc<TodaySummary>(
+      'get_today_summary',
+      { p_hospital_id: hospitalId },
+      'getTodaySummary',
+    )
+  },
+
+  async getHospitalAnalytics(
+    hospitalId: string,
+    from: string,
+    to: string,
+    doctorId?: string | null,
+  ): Promise<HospitalAnalytics> {
+    return callRpc<HospitalAnalytics>(
+      'get_hospital_analytics',
+      {
+        p_hospital_id: hospitalId,
+        p_from: from,
+        p_to: to,
+        p_doctor_id: doctorId ?? null,
+      },
+      'getHospitalAnalytics',
+    )
+  },
+
+  async getPlatformAnalytics(from: string, to: string): Promise<PlatformAnalytics> {
+    return callRpc<PlatformAnalytics>(
+      'get_platform_analytics',
+      { p_from: from, p_to: to },
+      'getPlatformAnalytics',
+    )
   },
 
   // ---- realtime ---------------------------------------------------------

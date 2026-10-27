@@ -60,6 +60,8 @@ export interface UiMessages {
     /** `aria-label` for the staff navigation landmark. */
     label: string
     queue: string
+    analytics: string
+    admin: string
     doctors: string
     settings: string
     qr: string
@@ -136,6 +138,15 @@ export interface UiMessages {
     queueLoading: string
     emptyQueueTitle: string
     emptyQueueDescription: string
+    todayAtAGlance: string
+    todayHint: string
+    todayLoading: string
+    todayRegistered: string
+    todayCompleted: string
+    todayWaiting: string
+    todaySkipped: string
+    todayAvgWait: string
+    todayPeakHour: string
   }
 
   doctors: {
@@ -218,6 +229,58 @@ export interface UiMessages {
     currentLabel: string
     nextLabel: string
     waitingLabel: string
+  }
+
+  analytics: {
+    title: string
+    description: string
+    loading: string
+    range: string
+    presets: {
+      today: string
+      week: string
+      month: string
+      lastMonth: string
+      last30: string
+      last90: string
+      custom: string
+    }
+    from: string
+    to: string
+    date: string
+    apply: string
+    doctor: string
+    allDoctors: string
+    summaryTitle: string
+    summaryHint: string
+    registered: string
+    completed: string
+    skipped: string
+    waiting: string
+    called: string
+    newPatients: string
+    followupPatients: string
+    avgWait: string
+    avgConsult: string
+    peakHour: string
+    dailyTrend: string
+    dailyTrendHint: string
+    hourlyLoad: string
+    hourlyLoadHint: string
+    doctorLoad: string
+    doctorLoadHint: string
+    hospitalLoad: string
+    hospitalLoadHint: string
+    noData: string
+    exportCsv: string
+    doctorsTableTitle: string
+    hospitalsTableTitle: string
+    hospital: string
+    allHospitals: string
+    platformTitle: string
+    platformDescription: string
+    platformLoading: string
+    notAuthorized: string
   }
 
   settings: {

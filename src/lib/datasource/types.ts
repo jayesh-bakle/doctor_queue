@@ -22,6 +22,11 @@ import type {
   TokenPulseResult,
   TokenStatusResult,
 } from '../../types/database'
+import type {
+  HospitalAnalytics,
+  PlatformAnalytics,
+  TodaySummary,
+} from '../../types/analytics'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
 
 export interface RegisterPatientInput {
@@ -60,6 +65,8 @@ export interface StaffSession {
   fullName: string
   role: StaffRole
   hospitalId: string
+  /** True only for a user listed in `platform_admins`. */
+  isPlatformAdmin: boolean
 }
 
 /** Maps a raw `queue_entries` row to the shape the dashboard renders. */
@@ -170,6 +177,25 @@ export interface QueueDataSource {
   getHospital(hospitalId?: string): Promise<HospitalRow | null>
   /** Updates the signed-in staff member's hospital; scoped by RLS. */
   updateHospital(input: HospitalSettingsInput): Promise<void>
+
+  // ---- analytics --------------------------------------------------------
+  /**
+   * Today's live counts for the reception dashboard. Uses raw queue rows so it
+   * is current even before the 15-minute aggregate refresh runs.
+   */
+  getTodaySummary(hospitalId: string): Promise<TodaySummary>
+  /**
+   * One hospital's monthly aggregates. The database rejects RECEPTION callers;
+   * the page also hides the route from them.
+   */
+  getHospitalAnalytics(
+    hospitalId: string,
+    from: string,
+    to: string,
+    doctorId?: string | null,
+  ): Promise<HospitalAnalytics>
+  /** All-hospital aggregates. Only a platform admin can call this RPC. */
+  getPlatformAnalytics(from: string, to: string): Promise<PlatformAnalytics>
 
   // ---- realtime ---------------------------------------------------------
   /**

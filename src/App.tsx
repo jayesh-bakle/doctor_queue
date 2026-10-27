@@ -4,8 +4,10 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { LanguageProvider } from './hooks/useLanguage'
 import { StaffAuthProvider } from './hooks/useStaffAuth'
 import { canRunApp } from './lib/env'
+import { AnalyticsPage } from './pages/AnalyticsPage'
 import { DisplayPage } from './pages/DisplayPage'
 import { DoctorsPage } from './pages/DoctorsPage'
+import { PlatformAdminPage } from './pages/PlatformAdminPage'
 import { HomePage } from './pages/HomePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { QRPage } from './pages/QRPage'
@@ -64,8 +66,12 @@ export function App() {
               <Route path="/staff/login/:hospitalId" element={<StaffLoginPage />} />
               <Route path="/staff/login" element={<StaffLoginPage />} />
               <Route path="/staff/dashboard" element={<StaffDashboardPage />} />
+              <Route path="/staff/analytics" element={<AnalyticsPage />} />
               <Route path="/staff/doctors" element={<DoctorsPage />} />
               <Route path="/staff/settings" element={<SettingsPage />} />
+
+              {/* --- Platform owner (all hospitals) ------------------------ */}
+              <Route path="/admin" element={<PlatformAdminPage />} />
 
               {/* --- Public display (TV, no login, no PII) ------------------ */}
               <Route path="/display/h/:hospitalId" element={<DisplayPage />} />

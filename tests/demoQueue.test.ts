@@ -442,10 +442,11 @@ describe('recall and status transitions', () => {
 })
 
 describe('staff authentication', () => {
-  it('signs in the demo receptionist and remembers the session', async () => {
+  it('signs in the demo administrator and remembers the session', async () => {
     const session = await demoDataSource.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
 
-    expect(session.role).toBe('RECEPTION')
+    expect(session.role).toBe('ADMIN')
+    expect(session.isPlatformAdmin).toBe(true)
     expect(await demoDataSource.getCurrentStaff()).toEqual(session)
   })
 

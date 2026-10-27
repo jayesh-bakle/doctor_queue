@@ -1,4 +1,13 @@
-import { HeartPulse, LayoutList, LogOut, QrCode, Settings, Stethoscope } from 'lucide-react'
+import {
+  BarChart3,
+  HeartPulse,
+  LayoutList,
+  LogOut,
+  QrCode,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Navigate, NavLink } from 'react-router-dom'
 
@@ -24,8 +33,15 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   const m = messages.ui
 
   // Built here rather than at module scope because the labels are translated.
+  const canViewAnalytics = session?.role === 'ADMIN' || session?.isPlatformAdmin === true
   const navItems = [
     { to: '/staff/dashboard', label: m.nav.queue, icon: LayoutList },
+    ...(canViewAnalytics
+      ? [{ to: '/staff/analytics', label: m.nav.analytics, icon: BarChart3 }]
+      : []),
+    ...(session?.isPlatformAdmin
+      ? [{ to: '/admin', label: m.nav.admin, icon: ShieldCheck }]
+      : []),
     { to: '/staff/doctors', label: m.nav.doctors, icon: Stethoscope },
     { to: '/staff/settings', label: m.nav.settings, icon: Settings },
     { to: '/qr', label: m.nav.qr, icon: QrCode },

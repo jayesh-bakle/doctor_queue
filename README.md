@@ -74,6 +74,18 @@ same number, and the client never computes a token itself.
   connection it does not have.
 - **The QR poster and TV links**, ready to print or copy.
 
+### Analytics / owner (authenticated)
+
+- **Today at a glance** on the reception dashboard: registered, completed, waiting, skipped,
+  average wait and the busiest hour for the whole hospital.
+- **Hospital analytics** for an `ADMIN` at `/staff/analytics`: daily trend, hourly load, doctor
+  comparison, summary cards, date presets and a doctor filter. CSV export contains aggregates only.
+- **Platform owner dashboard** at `/admin` for users in `platform_admins`: every hospital's totals,
+  a hospital comparison, a drill-down hospital filter and CSV export.
+- **Aggregates only** — no patient name, mobile number or token id ever reaches these screens.
+- **History survives pruning**: analytics rows are kept after the raw `queue_entries` rows are
+  deleted, and `011_analytics.sql` backfills the last 90 days that still exist.
+
 ### TV display (public, no login)
 
 - The current token, next token, waiting count, doctor name, room number, date and clock.
@@ -107,11 +119,12 @@ same number, and the client never computes a token itself.
 | Build | Vite 6 | Fast dev server; a small, static production bundle |
 | Styling | Tailwind CSS v4 | Consistent spacing and sizing across two very different screens (a phone and a TV) |
 | Icons | Lucide React | Small, consistent, tree-shakeable |
-| Routing | React Router 7 | The nine routes in the spec, plus deep-linkable token URLs |
+| Routing | React Router 7 | The staff, patient and TV routes, plus deep-linkable token URLs |
 | Backend | Supabase (Postgres, Auth, Realtime) | Managed Postgres with row level security, and Realtime for free |
 | Token allocation | PostgreSQL `pg_advisory_xact_lock` | The only place that can genuinely serialise two simultaneous registrations |
 | Voice | Web Speech API (`mr-IN`) | Free, built into the browser, no paid service |
 | QR | `qrcode` (npm) | Generates a print-resolution PNG in the browser |
+| Charts | Recharts | Lazy-loaded analytics charts; no chart code on patient or TV pages |
 | Hosting | Vercel | Static hosting with an SPA rewrite |
 | Tests | Vitest | Unit tests over the queue logic; SQL tests over the concurrency guarantee |
 
@@ -148,7 +161,8 @@ Doctor-queue-system/
 │   │   ├── 007_quota_optimization.sql Pulse/TV RPCs, statement triggers, retention, Sheet mappings
 │   │   ├── 008_daily_token_cap.sql Per-doctor daily ceiling and the anon-grant lockdown note
 │   │   ├── 009_hospital_changes.sql Doctor-change signal so the TV updates when reception edits doctors
-│   │   └── 010_big_hospital_hardening.sql 2,000/day cap, export anti-join, export index
+│   │   ├── 010_big_hospital_hardening.sql 2,000/day cap, export anti-join, export index
+│   │   └── 011_analytics.sql Aggregate tables, analytics RPCs, platform admins, pg_cron refresh
 │   ├── functions/
 │   │   ├── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
 │   │   └── register-patient/      Turnstile check, then register_patient() with the service role
@@ -276,7 +290,7 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Eight migration files, run **in order**. Together they are idempotent, so re-running them is safe
+Eleven migration files, run **in order**. Together they are idempotent, so re-running them is safe
 and nothing is ever dropped.
 
 | File | What it creates |
@@ -291,6 +305,7 @@ and nothing is ever dropped.
 | `008_daily_token_cap.sql` | Hard daily ceiling per doctor (`hospitals.max_daily_tokens`, default 2,000) raising `QUEUE_FULL`; also documents the anon grant to revoke once the `register-patient` function is live |
 | `009_hospital_changes.sql` | A small, public, PII-free signal table plus a trigger on `doctors`; the shared TV refetches its active-doctor list immediately when reception adds, edits, reorders or deactivates a doctor |
 | `010_big_hospital_hardening.sql` | Raises the daily cap for existing clinics, adds `get_unexported_entries()` (a bounded anti-join for the Sheet export), and indexes the pending-export scan; pair it with the updated `daily-sheet-export` function, which writes monthly tabs |
+| `011_analytics.sql` | `platform_admins`, aggregate tables (`analytics_hospital_daily`, `analytics_doctor_daily`, `analytics_hourly`), `is_platform_admin()`, the analytics RPCs, a 90-day backfill and optional `pg_cron` refresh jobs |
 
 ### Running them
 
@@ -298,7 +313,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, `006_multi_hospital_support.sql`, `007_quota_optimization.sql`, `008_daily_token_cap.sql`, `009_hospital_changes.sql`, then `010_big_hospital_hardening.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, `006_multi_hospital_support.sql`, `007_quota_optimization.sql`, `008_daily_token_cap.sql`, `009_hospital_changes.sql`, `010_big_hospital_hardening.sql`, then `011_analytics.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 To wipe an existing database and rebuild it with **one login per hospital**, follow
@@ -316,7 +331,7 @@ supabase db push
 
 ### Verifying the migration
 
-Run this in the SQL editor. It should return five tables and no `false` in the last column:
+Run this in the SQL editor. It should return every expected table and no `false` in the last column:
 
 ```sql
 select tablename, rowsecurity
@@ -330,6 +345,7 @@ Then confirm the security boundary is in place — **both** of these must return
 ```sql
 select has_table_privilege('anon', 'queue_entries', 'SELECT');
 select has_table_privilege('anon', 'staff_users',    'SELECT');
+select has_table_privilege('anon', 'analytics_hospital_daily', 'SELECT');
 ```
 
 If either returns `true`, stop and re-run `002_rls.sql`. Until they are `false`, the `anon` key
@@ -417,7 +433,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. All ten migrations and `seed.sql` must already have been run.
+`npm run dev`. All eleven migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -783,7 +799,7 @@ printing patient data.
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all ten migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all eleven migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.
@@ -906,17 +922,70 @@ broken Sheet does not stop the others (section 14).
 
 ---
 
+## 18. Analytics and platform owner
+
+### Who can see what
+
+| Role | Screen | Scope |
+|---|---|---|
+| `RECEPTION` | Today at a glance on the dashboard | Today, whole hospital, live from `queue_entries` |
+| `ADMIN` | `/staff/analytics` | Any date range for its own hospital, plus doctor filter |
+| Platform owner | `/admin` | Every hospital, hospital comparison and drill-down |
+
+The route guards are convenience only. The SQL RPCs check `staff_users` and `platform_admins` on
+every call, so a receptionist cannot read the analytics screen by typing its URL.
+
+### After running `011_analytics.sql`
+
+The migration backfills the last 90 days that still exist in `queue_entries`, then schedules two
+`pg_cron` jobs **if the extension is installed**:
+
+- every 15 minutes: refresh the last two days;
+- nightly at 20:30 UTC: refresh the last seven days for late status corrections.
+
+Without `pg_cron`, run this from a scheduled job or manually:
+
+```sql
+select refresh_analytics(current_date - 7, current_date + 1);
+```
+
+`refresh_analytics()` is executable by `service_role` only. The read RPCs are
+`get_today_summary()`, `get_hospital_analytics()` and `get_platform_analytics()`.
+
+### Create the platform owner
+
+Create the login in **Authentication → Users**, then add its UID to `platform_admins`:
+
+```sql
+insert into platform_admins (user_id)
+select id from auth.users where email = 'owner@example.com'
+on conflict (user_id) do nothing;
+```
+
+The owner still needs a normal `staff_users` row to sign in through the existing staff login; the
+`platform_admins` row is what unlocks `/admin` and cross-hospital analytics. The app reads it via
+`is_platform_admin()`; if `011_analytics.sql` has not been applied yet, staff login still works and
+the owner flag is simply `false`.
+
+### Demo mode
+
+The demo account is now an administrator and platform owner. Sign in with the demo credentials and
+open `/staff/analytics` or `/admin`; the demo backend generates deterministic history for earlier
+days and uses today's real in-browser queue for today.
+
+---
+
 ## Scope
 
 **Built (MVP):** queue and token management, patient self-registration by QR, live token status,
 staff dashboard, doctor management, hospital settings, TV display, English / Marathi / Gujarati UI
 with per-language numerals, speech with a toggle, QR poster generation, staff authentication,
 realtime updates, demo mode,
-several hospitals on one deployment (section 17), tests.
+several hospitals on one deployment (section 17), hospital and platform analytics (section 18),
+tests.
 
 **Not built, deliberately:** payments, billing, pharmacy, laboratory, EMR, appointment calendars,
-insurance, patient accounts, SMS, WhatsApp, push notifications, an AI chatbot, analytics
-dashboards.
+insurance, patient accounts, SMS, WhatsApp, push notifications, an AI chatbot.
 
 The schema leaves room for some of these later — the hospital is a table, not a constant, and
 `queue_entries` already carries a `queue_date`, so appointments or a second branch would be a data
