@@ -17,6 +17,7 @@ import { SetupNotice } from './pages/SetupNotice'
 import { StaffDashboardPage } from './pages/StaffDashboardPage'
 import { StaffLoginPage } from './pages/StaffLoginPage'
 import { TokenStatusPage } from './pages/TokenStatusPage'
+import { TvShortLinkPage } from './pages/TvShortLinkPage'
 
 /**
  * Application root: routing, and the three providers that wrap everything.
@@ -74,7 +75,10 @@ export function App() {
               <Route path="/admin" element={<PlatformAdminPage />} />
 
               {/* --- Public display (TV, no login, no PII) ------------------ */}
+              {/* Short link for one-clinic installs; resolves the only hospital. */}
+              <Route path="/tv" element={<TvShortLinkPage />} />
               <Route path="/display/h/:hospitalId" element={<DisplayPage />} />
+              <Route path="/display/:doctorId" element={<DisplayPage />} />
 
               {/* --- QR poster ----------------------------------------------- */}
               <Route path="/qr" element={<QRPage />} />

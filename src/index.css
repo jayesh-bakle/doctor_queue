@@ -72,6 +72,48 @@ body {
   line-height: 1;
 }
 
+.tv-token-banner {
+  font-size: 4rem;
+}
+
+.tv-token-card {
+  font-size: 5rem;
+}
+
+.tv-token-card-large {
+  font-size: 6rem;
+}
+
+.tv-token-next {
+  font-size: 2.5rem;
+}
+
+.tv-token-next-small {
+  font-size: 2rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-banner {
+    font-size: clamp(2.5rem, min(5vw, 10vh), 20rem);
+  }
+
+  .tv-token-card {
+    font-size: clamp(4rem, min(9vw, 14vh), 40rem);
+  }
+
+  .tv-token-card-large {
+    font-size: clamp(5rem, min(13vw, 22vh), 60rem);
+  }
+
+  .tv-token-next {
+    font-size: clamp(2rem, min(3.5vw, 6vh), 16rem);
+  }
+
+  .tv-token-next-small {
+    font-size: clamp(1.5rem, min(2.4vw, 4vh), 10rem);
+  }
+}
+
 /* The one animation that earns its place: a brief pulse when the token on the
    TV or the phone changes, so the change is noticed without being missed. */
 @keyframes token-flash {
@@ -115,6 +157,19 @@ body {
 
 .display-page-enter {
   animation: display-page-enter 350ms ease-out;
+}
+
+/* The TV header controls (language, sound) are shared with the phone UI, where
+   their normal sizes are right. Scale only the copies inside the display. */
+.tv-controls button {
+  min-height: clamp(2.5rem, 4vh, 4rem);
+  padding-inline: clamp(0.75rem, 1vw, 1.5rem);
+  font-size: clamp(0.9rem, 1.1vw, 1.75rem);
+}
+
+.tv-controls button svg {
+  width: clamp(1rem, 1.4vw, 2rem);
+  height: clamp(1rem, 1.4vw, 2rem);
 }
 
 /* A 720p waiting-room TV has much less vertical room than a 1080p one. Keep the

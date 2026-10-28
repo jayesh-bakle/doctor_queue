@@ -578,6 +578,11 @@ Each clinic has one shared display URL:
 https://your-domain/display/h/<hospital-id>
 ```
 
+On a **one-clinic installation** you can also use the shorter `https://your-domain/tv`. It resolves the
+only hospital and redirects to the full display URL, so nothing has to be typed on a TV remote. With
+two or more hospitals there is no safe default — use the full link from `/qr`, because showing one
+clinic's queue on another clinic's TV would be worse than showing nothing.
+
 It shows every active doctor, so a clinic with six doctors needs one screen, not six. With seven or
 more doctors it rotates through pages of five every 12 seconds; the **Now calling** banner stays
 visible even when the called doctor is on another page. The `/qr` page shows the URL with a copy

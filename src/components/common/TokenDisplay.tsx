@@ -3,7 +3,18 @@ import { useEffect, useRef, useState } from 'react'
 import { useLanguage } from '../../hooks/useLanguage'
 import { cn } from '../../lib/utils'
 
-type TokenSize = 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'display'
+type TokenSize =
+  | 'sm'
+  | 'md'
+  | 'lg'
+  | 'xl'
+  | 'card'
+  | 'display'
+  | 'tvBanner'
+  | 'tvCard'
+  | 'tvCardLarge'
+  | 'tvNext'
+  | 'tvNextSmall'
 
 const SIZE_CLASSES: Record<TokenSize, string> = {
   sm: 'text-3xl',
@@ -16,6 +27,15 @@ const SIZE_CLASSES: Record<TokenSize, string> = {
   // Sized in viewport units so the number fills a 1080p TV from across the
   // room, and still fits a laptop when the same page is opened there.
   display: 'text-[clamp(5rem,20vw,17rem)]',
+  // TV sizes are driven by viewport width, not the browser's default rem
+  // scale. A 55-inch 4K panel reports a 3840px-wide CSS viewport, so fixed
+  // `text-8xl` numerals look like a caption; these grow with the screen and
+  // stop at a size that still fits the card grid vertically.
+  tvBanner: 'tv-token-banner',
+  tvCard: 'tv-token-card',
+  tvCardLarge: 'tv-token-card-large',
+  tvNext: 'tv-token-next',
+  tvNextSmall: 'tv-token-next-small',
 }
 
 interface TokenDisplayProps {
@@ -75,7 +95,7 @@ export function TokenDisplay({
   }, [token, animate])
 
   return (
-    <div className={cn('flex flex-col items-center text-center', className)}>
+    <div className={cn('flex max-w-full flex-col items-center text-center', className)}>
       {label ? (
         <p className="mb-2 text-sm font-semibold tracking-wide text-slate-600 uppercase sm:text-base">
           {label}
@@ -86,7 +106,7 @@ export function TokenDisplay({
           language the interface is currently writing it. */}
       <div
         className={cn(
-          'token-digits font-extrabold',
+          'token-digits max-w-full whitespace-nowrap font-extrabold',
           tone === 'dark' ? 'text-slate-900' : 'text-white',
           SIZE_CLASSES[size],
           flashing && 'token-flash',

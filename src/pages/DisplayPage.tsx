@@ -7,7 +7,7 @@ import { LanguageSwitcher } from '../components/common/LanguageSwitcher'
 import { DoctorCard } from '../components/display/DoctorCard'
 import { NowCallingBanner, type LatestCall } from '../components/display/NowCallingBanner'
 import { usePageRotation } from '../hooks/usePageRotation'
-import { usePublicHospitalQueue } from '../hooks/usePublicHospitalQueue'
+import { usePublicDisplayQueue } from '../hooks/usePublicDisplayQueue'
 import { useLanguage } from '../hooks/useLanguage'
 import {
   buildDoctorPages,
@@ -36,8 +36,11 @@ const HIGHLIGHT_DURATION_MS = 30_000
  * clinical column, and the doctor-change signal carries only a hospital id.
  */
 export function DisplayPage() {
-  const { hospitalId } = useParams<{ hospitalId: string }>()
-  const { doctors, hospital, loading, notFound, error } = usePublicHospitalQueue(hospitalId)
+  const { hospitalId, doctorId } = useParams<{ hospitalId?: string; doctorId?: string }>()
+  const { doctors, hospital, loading, notFound, error } = usePublicDisplayQueue({
+    hospitalId,
+    doctorId,
+  })
   const { language, messages } = useLanguage()
   const t = messages.ui.display
 
@@ -52,8 +55,9 @@ export function DisplayPage() {
   const highlightTimersRef = useRef<Map<string, number>>(new Map())
 
   const allIdle =
-    doctors.length === 0 ||
-    doctors.every((doctor) => doctor.current_token === null && doctor.next_token === null)
+    !doctorId &&
+    (doctors.length === 0 ||
+      doctors.every((doctor) => doctor.current_token === null && doctor.next_token === null))
 
   // Do not rotate behind the empty-queue screen: when the first patient is
   // called, the TV should start on page one, not wherever the idle timer left it.
@@ -183,7 +187,7 @@ export function DisplayPage() {
     return (
       <DisplayLayout>
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-2xl text-slate-400">{t.loading}</p>
+          <p className="text-[clamp(1.5rem,2.5vw,4rem)] text-slate-400">{t.loading}</p>
         </div>
       </DisplayLayout>
     )
@@ -192,11 +196,17 @@ export function DisplayPage() {
   if (notFound || error || !hospital) {
     return (
       <DisplayLayout>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-          <p className="text-3xl font-bold">{error ?? t.unavailable}</p>
-          <p className="text-lg text-slate-400">{t.checkUrl}</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,2vw,2.5rem)] px-[clamp(2rem,4vw,6rem)] text-center">
+          <p className="max-w-full break-words text-[clamp(2rem,4vw,6rem)] font-bold">
+            {error ?? t.unavailable}
+          </p>
+          <p className="max-w-full break-words text-[clamp(1.25rem,2vw,3.5rem)] text-slate-400">
+            {t.checkUrl}
+          </p>
           {hospitalId ? (
-            <p className="text-sm text-slate-500">{displayUrl(hospitalId)}</p>
+            <p className="text-[clamp(0.875rem,1.2vw,2rem)] text-slate-500">
+              {displayUrl(hospitalId)}
+            </p>
           ) : null}
         </div>
       </DisplayLayout>
@@ -209,24 +219,24 @@ export function DisplayPage() {
 
   return (
     <DisplayLayout>
-      <header className="display-header flex shrink-0 items-center justify-between gap-4 border-b border-slate-700 px-4 py-4 sm:px-8">
+      <header className="display-header flex shrink-0 items-center justify-between gap-[clamp(1rem,2vw,3rem)] border-b border-slate-700 px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)]">
         <div className="flex min-w-0 flex-col">
-          <p className="truncate text-xl font-extrabold tracking-wide text-white sm:text-2xl">
+          <p className="line-clamp-2 break-words text-[clamp(1.5rem,2.4vw,5rem)] leading-tight font-extrabold tracking-wide text-white">
             {hospital.hospital_name}
           </p>
-          <p className="display-date mt-0.5 text-sm text-slate-400">
+          <p className="display-date mt-[clamp(0.125rem,0.2vw,0.5rem)] text-[clamp(0.875rem,1.1vw,2.5rem)] text-slate-400">
             {messages.dateWithWeekday(now, timezone)}
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+        <div className="tv-controls flex shrink-0 items-center gap-[clamp(0.75rem,1.5vw,2.5rem)]">
           {rotating && !allIdle ? (
-            <p className="token-digits rounded-full bg-slate-800 px-3 py-1 text-base font-bold text-slate-300">
+            <p className="token-digits rounded-full bg-slate-800 px-[clamp(0.75rem,1vw,1.5rem)] py-[clamp(0.25rem,0.4vw,0.75rem)] text-[clamp(1rem,1.5vw,2.5rem)] font-bold text-slate-300">
               {messages.count(pageIndex + 1)} / {messages.count(pageCount)}
             </p>
           ) : null}
-          <p className="token-digits flex items-center gap-2 text-lg font-bold text-slate-300 sm:text-xl">
-            <Clock className="size-5" aria-hidden="true" />
+          <p className="token-digits flex items-center gap-[clamp(0.5rem,0.8vw,1rem)] text-[clamp(1.25rem,1.9vw,4rem)] font-bold text-slate-300">
+            <Clock className="size-[clamp(1.25rem,1.9vw,4rem)]" aria-hidden="true" />
             {messages.time(now, timezone)}
           </p>
           <LanguageSwitcher tone="dark" className="no-print" />
@@ -236,11 +246,13 @@ export function DisplayPage() {
 
       <NowCallingBanner call={latestCall} />
 
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-4 py-3 sm:px-8">
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)]">
         {allIdle ? (
-          <div className="flex flex-col items-center gap-4 px-4 text-center">
-            <p className="text-3xl font-bold text-slate-300 sm:text-4xl">{t.emptyQueue}</p>
-            <p className="text-lg text-slate-500 sm:text-xl">
+          <div className="flex max-w-full flex-col items-center gap-[clamp(1rem,2vw,2.5rem)] px-[clamp(1rem,2vw,3rem)] text-center">
+            <p className="max-w-full break-words text-[clamp(2rem,4vw,6rem)] font-bold text-slate-300">
+              {t.emptyQueue}
+            </p>
+            <p className="max-w-full break-words text-[clamp(1.25rem,2vw,3.5rem)] text-slate-500">
               {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
             </p>
           </div>
@@ -252,7 +264,9 @@ export function DisplayPage() {
             <div
               className={cn(
                 'grid w-full content-center',
-                dense ? 'gap-3' : 'gap-5',
+                dense
+                  ? 'gap-[clamp(0.5rem,0.8vw,1.25rem)]'
+                  : 'gap-[clamp(0.75rem,1.5vw,2rem)]',
                 gridClassFor(pageItems.length),
               )}
             >
@@ -272,8 +286,8 @@ export function DisplayPage() {
         )}
       </main>
 
-      <footer className="display-footer shrink-0 border-t border-slate-700 px-4 py-3 text-center sm:px-8">
-        <p className="truncate text-lg font-semibold text-slate-300 sm:text-xl">
+      <footer className="display-footer shrink-0 border-t border-slate-700 px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)] text-center">
+        <p className="line-clamp-2 break-words text-[clamp(1rem,1.6vw,3rem)] leading-snug font-semibold text-slate-300">
           {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
         </p>
       </footer>

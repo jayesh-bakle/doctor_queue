@@ -61,17 +61,17 @@ export function displaySignature<T>(items: readonly T[], getId: (item: T) => str
 export function gridClassFor(count: number): string {
   switch (count) {
     case 1:
-      return 'max-w-5xl grid-cols-1'
+      return 'max-w-[min(90vw,300rem)] grid-cols-1'
     case 2:
-      return 'max-w-7xl grid-cols-1 sm:grid-cols-2'
+      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2'
     case 3:
-      return 'max-w-7xl grid-cols-1 sm:grid-cols-3'
+      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-3'
     case 4:
-      return 'max-w-7xl grid-cols-2'
+      return 'max-w-[min(96vw,400rem)] grid-cols-2'
     case 5:
-      return 'max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-6'
+      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-6'
     default:
-      return 'max-w-7xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
   }
 }
 

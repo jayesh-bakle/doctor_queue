@@ -9,7 +9,10 @@ import type { ReactNode } from 'react'
  */
 export function DisplayLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-slate-900 text-white">
+    <div
+      className="flex h-screen w-screen flex-col overflow-hidden bg-slate-900 text-white supports-[height:100dvh]:h-dvh"
+      style={{ backgroundColor: '#0f172a', color: '#ffffff', colorScheme: 'dark' }}
+    >
       {children}
     </div>
   )

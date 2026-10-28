@@ -23,19 +23,26 @@ export function NowCallingBanner({ call }: { call: LatestCall | null }) {
 
   return (
     <section
-      className="display-banner mx-4 mt-3 flex min-h-20 items-center gap-5 rounded-2xl border border-brand-500/70 bg-brand-800 px-5 py-3 text-white sm:mx-8"
+      className="display-banner mx-[clamp(1rem,2vw,3rem)] mt-[clamp(0.75rem,1.2vw,1.5rem)] flex max-w-full min-h-[clamp(5rem,10vh,12rem)] items-center gap-[clamp(1rem,2vw,3rem)] rounded-[clamp(1rem,1.5vw,2.5rem)] border border-brand-500/70 bg-brand-800 px-[clamp(1rem,2vw,3rem)] py-[clamp(0.75rem,1.2vw,2rem)] text-white"
+      style={{ backgroundColor: '#115e59', borderColor: '#14b8a6' }}
       role="status"
     >
-      <div className="shrink-0 border-r border-brand-600 pr-5">
-        <p className="text-xs font-bold tracking-wider text-brand-200 uppercase">
+      <div className="shrink-0 border-r border-brand-600 pr-[clamp(1rem,2vw,3rem)]">
+        <p className="text-[clamp(0.75rem,1vw,1.5rem)] font-bold tracking-wider text-brand-200 uppercase">
           {t.nowCalling}
         </p>
-        <TokenDisplay token={call.token} size="md" tone="light" />
+        <TokenDisplay token={call.token} size="tvBanner" tone="light" />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xl font-extrabold sm:text-2xl">{call.doctorName}</p>
-        {meta ? <p className="mt-1 text-base text-brand-200">{meta}</p> : null}
+        <p className="line-clamp-2 break-words text-[clamp(1.5rem,2.6vw,5rem)] leading-tight font-extrabold">
+          {call.doctorName}
+        </p>
+        {meta ? (
+          <p className="mt-[clamp(0.25rem,0.4vw,0.75rem)] break-words text-[clamp(1rem,1.4vw,2.5rem)] text-brand-200">
+            {meta}
+          </p>
+        ) : null}
       </div>
     </section>
   )
