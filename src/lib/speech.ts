@@ -1,19 +1,15 @@
 /**
  * Audio announcements via the browser's Web Speech API.
  *
- * Two things this module refuses to do, both deliberate:
+ * The app uses voices the browser already exposes — local system voices first,
+ * then browser-provided voices, then the browser's default voice. It never
+ * calls a paid TTS service and never makes the queue depend on speech: if the
+ * API is unavailable, every function degrades to a silent no-op.
  *
- * 1. It never makes the app depend on speech. Indic-script TTS (Devanagari and
- *    Gujarati) is unavailable on many Android and most desktop browsers, so
- *    every function degrades to a silent no-op and the queue keeps working
- *    (spec §13).
- *
- * 2. It never pretends a voice it wanted was used. When no voice exists for the
- *    chosen language it reports that, rather than substituting an unrelated one.
- *
- * The announcement follows the language on screen. A Marathi sentence read aloud
- * to a waiting room that has been switched to English would be worse than
- * silence, so the voice is picked from the current language, not a fixed list.
+ * The announcement follows the language on screen. A Marathi sentence read
+ * aloud by an English voice is a poor approximation, but it is still better
+ * than silence for a patient who cannot see the screen. The status API says
+ * which case is in effect, and the UI warns when the default voice is used.
  */
 
 import type { Language } from './i18n/types'
@@ -23,10 +19,10 @@ const STORAGE_KEY = 'queue.announcementEnabled'
 /**
  * Preferred voices per language, best first.
  *
- * Each language lists only voices written in its own script. There is no
- * cross-script fallback: a Hindi voice reading Marathi, or an English voice
- * reading Gujarati, would mispronounce the sentence rather than approximate it,
- * so a missing voice is reported instead of papered over.
+ * Each language lists only tags in its own language. There is deliberately no
+ * cross-language preference: a Hindi voice reading Marathi, or an English voice
+ * reading Gujarati, is not a substitute for the right voice. When none of these
+ * match, `pickVoice` reports a fallback and the browser decides what to use.
  */
 const VOICE_PREFERENCE: Record<Language, readonly string[]> = {
   en: ['en-IN', 'en-GB', 'en-US', 'en'],
@@ -34,20 +30,32 @@ const VOICE_PREFERENCE: Record<Language, readonly string[]> = {
   gu: ['gu-IN', 'gu'],
 }
 
-/** The BCP-47 tag used when no voice matched at all. */
+/** The BCP-47 tag used when no matching voice exists. */
 const NEUTRAL_TAG: Record<Language, string> = {
   en: 'en-IN',
   mr: 'mr-IN',
   gu: 'gu-IN',
 }
 
+export type VoiceSource = 'local' | 'browser' | 'fallback' | 'none'
+
 export interface SpeechStatus {
   supported: boolean
-  /** The BCP-47 tag the chosen voice will use, or null when none matched. */
+  /** The BCP-47 tag the chosen voice will use, or null in fallback mode. */
   voiceLang: string | null
   voiceName: string | null
-  /** True when no voice exists for the chosen language and pronunciation will be approximate. */
+  /** True when no voice matched and the browser's default will be used. */
   usingFallback: boolean
+  /** Where the chosen voice came from. */
+  source: VoiceSource
+  /** True when the chosen voice is installed on the device. */
+  local: boolean
+}
+
+interface VoiceChoice {
+  voice: SpeechSynthesisVoice | null
+  source: 'local' | 'browser' | 'fallback'
+  lang: string
 }
 
 let cachedVoices: SpeechSynthesisVoice[] = []
@@ -96,42 +104,93 @@ export function onVoicesChanged(callback: () => void): () => void {
   return () => s.removeEventListener('voiceschanged', handler)
 }
 
-function pickVoice(language: Language): SpeechSynthesisVoice | null {
-  const voices = voicesLoaded ? cachedVoices : loadVoices()
-  if (voices.length === 0) return null
+function voiceLanguage(voice: SpeechSynthesisVoice): string {
+  return (voice.lang ?? '').toLowerCase().split('-')[0] ?? ''
+}
+
+/**
+ * Finds a voice for a language in one source tier.
+ *
+ * `local` is true for voices installed on the device. Everything else is
+ * treated as a browser-provided voice, including browsers that do not expose
+ * `localService`.
+ */
+function findVoice(
+  voices: readonly SpeechSynthesisVoice[],
+  language: Language,
+  local: boolean,
+): SpeechSynthesisVoice | null {
+  const candidates = voices.filter((voice) =>
+    local ? voice.localService === true : voice.localService !== true,
+  )
 
   for (const preferred of VOICE_PREFERENCE[language]) {
-    // Exact tag first ("mr-IN"), then any voice for the language ("mr-*").
-    const exact = voices.find((v) => v.lang?.toLowerCase() === preferred.toLowerCase())
+    const exact = candidates.find(
+      (voice) => voice.lang?.toLowerCase() === preferred.toLowerCase(),
+    )
     if (exact) return exact
-
-    const prefix = preferred.split('-')[0].toLowerCase()
-    const byLanguage = voices.find((v) => v.lang?.toLowerCase().startsWith(prefix))
-    if (byLanguage) return byLanguage
   }
 
-  return null
+  return candidates.find((voice) => voiceLanguage(voice) === language) ?? null
+}
+
+/**
+ * Picks the best available voice for a language.
+ *
+ * The three tiers are deliberate:
+ *   1. a voice installed on the device, so it works offline;
+ *   2. a browser-provided voice, which may need the network but costs nothing;
+ *   3. the browser default, which may pronounce the text badly.
+ */
+function pickVoice(language: Language): VoiceChoice {
+  const voices = voicesLoaded ? cachedVoices : loadVoices()
+
+  const local = findVoice(voices, language, true)
+  if (local) {
+    return {
+      voice: local,
+      source: 'local',
+      lang: local.lang || NEUTRAL_TAG[language],
+    }
+  }
+
+  const browser = findVoice(voices, language, false)
+  if (browser) {
+    return {
+      voice: browser,
+      source: 'browser',
+      lang: browser.lang || NEUTRAL_TAG[language],
+    }
+  }
+
+  return {
+    voice: null,
+    source: 'fallback',
+    lang: NEUTRAL_TAG[language],
+  }
 }
 
 /** Describes what the announcement will actually sound like on this device. */
 export function getSpeechStatus(language: Language = 'en'): SpeechStatus {
   if (!isSpeechSupported()) {
-    return { supported: false, voiceLang: null, voiceName: null, usingFallback: false }
+    return {
+      supported: false,
+      voiceLang: null,
+      voiceName: null,
+      usingFallback: false,
+      source: 'none',
+      local: false,
+    }
   }
 
-  const voice = pickVoice(language)
-  if (!voice) {
-    return { supported: true, voiceLang: null, voiceName: null, usingFallback: true }
-  }
-
-  const lang = (voice.lang ?? '').toLowerCase()
-  const primary = VOICE_PREFERENCE[language][0]!.split('-')[0]!.toLowerCase()
+  const choice = pickVoice(language)
   return {
     supported: true,
-    voiceLang: voice.lang ?? null,
-    voiceName: voice.name ?? null,
-    // A fallback is a wrong-language voice, not merely a different accent.
-    usingFallback: !lang.startsWith(primary),
+    voiceLang: choice.voice?.lang ?? null,
+    voiceName: choice.voice?.name ?? null,
+    usingFallback: choice.source === 'fallback',
+    source: choice.source,
+    local: choice.source === 'local',
   }
 }
 
@@ -258,10 +317,10 @@ function speakQueued(item: QueuedAnnouncement): void {
   const generation = speechGeneration
 
   try {
+    const choice = pickVoice(item.language)
     const utterance = new SpeechSynthesisUtterance(item.text)
-    const voice = pickVoice(item.language)
-    if (voice) utterance.voice = voice
-    utterance.lang = voice?.lang ?? NEUTRAL_TAG[item.language]
+    if (choice.voice) utterance.voice = choice.voice
+    utterance.lang = choice.lang
     utterance.rate = 0.9
     utterance.pitch = 1
     utterance.volume = 1
@@ -389,12 +448,13 @@ export function speak(text: string, options?: { force?: boolean; language?: Lang
     resetSpeechQueue()
     s.cancel()
 
+    const choice = pickVoice(language)
     const utterance = new SpeechSynthesisUtterance(text)
-    const voice = pickVoice(language)
-    if (voice) utterance.voice = voice
-    // Tag the utterance regardless, so engines with no explicit voice still
-    // attempt the right pronunciation rather than the system default.
-    utterance.lang = voice?.lang ?? NEUTRAL_TAG[language]
+    if (choice.voice) utterance.voice = choice.voice
+    // Tag the utterance even in fallback mode, so engines with no explicit
+    // voice still attempt the right pronunciation rather than the system
+    // default's own language.
+    utterance.lang = choice.lang
     // Slightly slower than default: token numbers are read to people who may be
     // hard of hearing, in a noisy waiting room.
     utterance.rate = 0.9

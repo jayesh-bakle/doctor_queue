@@ -484,6 +484,7 @@ describe('doctor management', () => {
     const created = await demoDataSource.createDoctor({
       name: 'डॉ. नवीन',
       department: 'त्वचारोग',
+      departmentI18n: {},
       roomNumber: '3',
       isActive: true,
     })
@@ -502,6 +503,7 @@ describe('doctor management', () => {
     const created = await demoDataSource.createDoctor({
       name: 'डॉ. चुकीचे नाव',
       department: 'सामान्य वैद्यक',
+      departmentI18n: {},
       roomNumber: '4',
       isActive: true,
     })
@@ -536,6 +538,7 @@ describe('hospital settings', () => {
       timezone: 'Asia/Kolkata',
       announcementEnabled: false,
       displayMessage: 'लवकरच सुरू होईल',
+      displayMessageI18n: {},
       avgConsultationMinutes: 15,
     })
 
@@ -624,6 +627,7 @@ describe('realtime notifications', () => {
     const created = await demoDataSource.createDoctor({
       name: 'डॉ. नवीन',
       department: 'त्वचारोग',
+      departmentI18n: {},
       roomNumber: '3',
       isActive: true,
     })

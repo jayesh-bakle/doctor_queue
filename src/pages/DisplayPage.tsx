@@ -16,6 +16,7 @@ import {
   gridClassFor,
 } from '../lib/displayLayout'
 import { displayUrl } from '../lib/env'
+import { localizedValue } from '../lib/i18n/content'
 import { DEFAULT_TIME_ZONE, cn } from '../lib/utils'
 import { enqueueSpeech } from '../lib/speech'
 import { DisplayLayout } from '../layouts/DisplayLayout'
@@ -239,7 +240,9 @@ export function DisplayPage() {
         {allIdle ? (
           <div className="flex flex-col items-center gap-4 px-4 text-center">
             <p className="text-3xl font-bold text-slate-300 sm:text-4xl">{t.emptyQueue}</p>
-            <p className="text-lg text-slate-500 sm:text-xl">{hospital.display_message}</p>
+            <p className="text-lg text-slate-500 sm:text-xl">
+              {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
+            </p>
           </div>
         ) : (
           <div
@@ -258,6 +261,7 @@ export function DisplayPage() {
                   key={doctor.doctor_id ?? `${doctor.doctor_name ?? 'doctor'}-${index}`}
                   doctor={doctor}
                   messages={messages}
+                  language={language}
                   dense={dense}
                   highlighted={Boolean(doctor.doctor_id && recentCalls[doctor.doctor_id])}
                   className={cardClassFor(index, pageItems.length)}
@@ -270,7 +274,7 @@ export function DisplayPage() {
 
       <footer className="display-footer shrink-0 border-t border-slate-700 px-4 py-3 text-center sm:px-8">
         <p className="truncate text-lg font-semibold text-slate-300 sm:text-xl">
-          {hospital.display_message}
+          {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
         </p>
       </footer>
     </DisplayLayout>

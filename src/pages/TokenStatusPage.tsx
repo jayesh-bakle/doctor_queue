@@ -8,6 +8,7 @@ import { SituationCard } from '../components/patient/SituationCard'
 import { TokenDetailsCard } from '../components/patient/TokenDetailsCard'
 import { useLanguage } from '../hooks/useLanguage'
 import { useTokenStatus } from '../hooks/useTokenStatus'
+import { localizedValue } from '../lib/i18n/content'
 import { DEFAULT_TIME_ZONE } from '../lib/utils'
 import { PatientLayout } from '../layouts/PatientLayout'
 
@@ -25,7 +26,7 @@ import { PatientLayout } from '../layouts/PatientLayout'
 export function TokenStatusPage() {
   const { publicId } = useParams<{ publicId: string }>()
   const { data, loading, notFound, error, refresh } = useTokenStatus(publicId)
-  const { messages } = useLanguage()
+  const { language, messages } = useLanguage()
   const t = messages.ui.token
 
   if (loading) {
@@ -125,7 +126,7 @@ export function TokenStatusPage() {
       <TokenDetailsCard
         className="mt-5"
         doctorName={data.doctor_name}
-        department={data.department}
+        department={localizedValue(data.department_i18n, language, data.department)}
         roomNumber={data.room_number}
         hospitalName={data.hospital_name}
         queueDateLabel={messages.date(data.queue_date, timezone)}

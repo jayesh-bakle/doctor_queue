@@ -46,6 +46,7 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
   const mountedRef = useRef(true)
   const sinceRef = useRef<string | null>(null)
   const debounceRef = useRef<number | undefined>(undefined)
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     mountedRef.current = true
@@ -58,12 +59,17 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
   // A different doctor or a different day is a different queue: clear the old
   // rows immediately rather than showing yesterday's patients under today's date.
   useEffect(() => {
+    // Invalidate any request still in flight for the previous doctor/day so a
+    // slow response cannot repopulate the table after the user has switched.
+    requestIdRef.current += 1
     setEntries([])
     sinceRef.current = null
     setLoading(true)
   }, [doctorId, queueDate])
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestIdRef.current
+
     if (!doctorId) {
       setEntries([])
       sinceRef.current = null
@@ -73,16 +79,16 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
 
     try {
       const rows = await dataSource.listQueue(doctorId, queueDate)
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       setEntries(rows)
       sinceRef.current = maxUpdatedAt(rows)
       setErrorCode(null)
     } catch (caught) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       logTechnicalError('useQueue', caught)
       setErrorCode(toUserErrorCode(caught))
     } finally {
-      if (mountedRef.current) setLoading(false)
+      if (mountedRef.current && requestId === requestIdRef.current) setLoading(false)
     }
   }, [doctorId, queueDate])
 
@@ -95,9 +101,11 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
       return
     }
 
+    const requestId = ++requestIdRef.current
+
     try {
       const rows = await dataSource.listQueue(doctorId, queueDate, { since: sinceRef.current })
-      if (!mountedRef.current || rows.length === 0) return
+      if (!mountedRef.current || requestId !== requestIdRef.current || rows.length === 0) return
 
       setEntries((previous) => {
         const byId = new Map(previous.map((entry) => [entry.publicId, entry]))
@@ -111,7 +119,7 @@ export function useQueue(doctorId: string | null, queueDate: string): UseQueueRe
       }
       setErrorCode(null)
     } catch (caught) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       logTechnicalError('useQueue — delta', caught)
       setErrorCode(toUserErrorCode(caught))
     }

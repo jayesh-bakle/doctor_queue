@@ -162,7 +162,9 @@ Doctor-queue-system/
 │   │   ├── 008_daily_token_cap.sql Per-doctor daily ceiling and the anon-grant lockdown note
 │   │   ├── 009_hospital_changes.sql Doctor-change signal so the TV updates when reception edits doctors
 │   │   ├── 010_big_hospital_hardening.sql 2,000/day cap, export anti-join, export index
-│   │   └── 011_analytics.sql Aggregate tables, analytics RPCs, platform admins, pg_cron refresh
+│   │   ├── 011_analytics.sql Aggregate tables, analytics RPCs, platform admins, pg_cron refresh
+│   │   └── 012_i18n_content.sql Per-language department names and TV messages
+│   │   └── 013_security_hardening.sql ADMIN-only settings and history-safe doctor deletion
 │   ├── functions/
 │   │   ├── daily-sheet-export/    Edge Function that writes each day to a Google Sheet
 │   │   └── register-patient/      Turnstile check, then register_patient() with the service role
@@ -290,8 +292,9 @@ Then open <http://localhost:5173>. See section 9 for the full walkthrough.
 
 ## 7. Database migration
 
-Eleven migration files, run **in order**. Together they are idempotent, so re-running them is safe
-and nothing is ever dropped.
+Thirteen migration files, run **in order**. They are written to be safe to re-run. A few migrations
+drop and recreate an RPC when its return columns change, because Postgres cannot add an OUT column
+with `create or replace`; the migration re-issues the grants afterwards.
 
 | File | What it creates |
 |---|---|
@@ -306,6 +309,8 @@ and nothing is ever dropped.
 | `009_hospital_changes.sql` | A small, public, PII-free signal table plus a trigger on `doctors`; the shared TV refetches its active-doctor list immediately when reception adds, edits, reorders or deactivates a doctor |
 | `010_big_hospital_hardening.sql` | Raises the daily cap for existing clinics, adds `get_unexported_entries()` (a bounded anti-join for the Sheet export), and indexes the pending-export scan; pair it with the updated `daily-sheet-export` function, which writes monthly tabs |
 | `011_analytics.sql` | `platform_admins`, aggregate tables (`analytics_hospital_daily`, `analytics_doctor_daily`, `analytics_hourly`), `is_platform_admin()`, the analytics RPCs, a 90-day backfill and optional `pg_cron` refresh jobs |
+| `012_i18n_content.sql` | Adds `hospitals.display_message_i18n` and `doctors.department_i18n`, backfills them from the English originals, and returns them from the patient, TV and call-next RPCs |
+| `013_security_hardening.sql` | Makes hospital settings ADMIN-only and routes doctor deletion through `delete_doctor()`, which refuses when the doctor has queue history |
 
 ### Running them
 
@@ -313,7 +318,7 @@ and nothing is ever dropped.
 
 1. Open your project → **SQL Editor** → **New query**.
 2. Paste the entire contents of `001_initial_schema.sql`. Click **Run**.
-3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, `006_multi_hospital_support.sql`, `007_quota_optimization.sql`, `008_daily_token_cap.sql`, `009_hospital_changes.sql`, `010_big_hospital_hardening.sql`, then `011_analytics.sql`.
+3. Repeat for `002_rls.sql`, `003_queue_functions.sql`, `004_fix_doctor_delete.sql`, `005_sheet_export.sql`, `006_multi_hospital_support.sql`, `007_quota_optimization.sql`, `008_daily_token_cap.sql`, `009_hospital_changes.sql`, `010_big_hospital_hardening.sql`, `011_analytics.sql`, `012_i18n_content.sql`, then `013_security_hardening.sql`.
 4. Finally, paste and run `supabase/seed.sql` to create the sample hospital and two doctors.
 
 To wipe an existing database and rebuild it with **one login per hospital**, follow
@@ -433,7 +438,7 @@ real cross-tab lock, so it behaves the way the real system does rather than mere
 ### Against Supabase
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, leave `VITE_DEMO_MODE=false`, and run
-`npm run dev`. All eleven migrations and `seed.sql` must already have been run.
+`npm run dev`. All thirteen migrations and `seed.sql` must already have been run.
 
 ### Walking through it
 
@@ -583,7 +588,7 @@ button — open it on the TV's browser.
 1. Open the URL in the TV's browser (a smart TV, a TV stick, or a laptop on an HDMI cable).
 2. Press **F11** (or the browser's fullscreen control) for fullscreen. The layout is built for a
    16:9 screen with no browser chrome.
-3. Open `/staff/settings` and set the message shown under the token, if you want one.
+3. Sign in as an `ADMIN` and open `/staff/settings` to set the message shown under the token, if you want one. Settings are hidden from and rejected for `RECEPTION` accounts.
 4. Leave the tab open. It updates itself; nothing needs refreshing.
 
 **Operating notes**
@@ -795,11 +800,11 @@ printing patient data.
 | The TV never updates | The device dropped its websocket, or the display URL names the wrong hospital | Reload the tab; check the hospital id against `/qr`. The display also refreshes once a minute, and patient pages poll on their own adaptive timer |
 | "सध्या रांग उपलब्ध नाही." on `/register` | No active doctors, or `seed.sql` was never run | Add a doctor at `/staff/doctors`, or run `supabase/seed.sql` |
 | A patient's token page is blank | The `public_id` in the URL is wrong or was never issued | Ask reception for the link; token pages are not guessable by design |
-| No Marathi or Gujarati voice | The device has no `mr-IN`/`gu-IN` voice installed | The announcement is still spoken, but with the device's default voice, so the pronunciation may be wrong. On Android, add the language under Settings → Text-to-speech |
+| No Marathi or Gujarati voice | The device has no `mr-IN`/`gu-IN` voice installed | The announcement is still spoken, but with the device's default voice, so the pronunciation may be wrong. The toggle says which voice is in use and warns about fallback. On Android, add the language under Settings → Text-to-speech. A browser-provided voice may also need an internet connection |
 | "कनेक्शन खंडित" on the dashboard | The device has no internet | Check the connection. The indicator reports honestly and never claims a sync it does not have |
 | The build fails with a TypeScript error | A genuine type error | Run `npm run typecheck` and read the first error — the build stops there |
 | `npm run test:sql` reports skips | `SUPABASE_DB_URL` is not set | Expected. Set it to run the Postgres tests (section 9) |
-| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all eleven migrations ran, in order |
+| Duplicate tokens | Should be impossible | The unique constraint would refuse the insert. If you somehow see this, check that all thirteen migrations ran, in order |
 
 **When something is wrong in front of patients:** the paper register still works. Use it, and fix
 the system afterwards. The queue matters more than the software.

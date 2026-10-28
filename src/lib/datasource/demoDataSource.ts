@@ -111,6 +111,11 @@ function buildInitialHospital(): HospitalRow {
     timezone: 'Asia/Kolkata',
     announcement_enabled: true,
     display_message: 'Please wait for your token number to be called.',
+    display_message_i18n: {
+      en: 'Please wait for your token number to be called.',
+      mr: 'कृपया आपल्या टोकन क्रमांकाची वाट पाहा.',
+      gu: 'કૃપા કરીને તમારા ટોકન નંબરની રાહ જુઓ.',
+    },
     avg_consultation_minutes: 10,
     retention_days: 90,
     max_daily_tokens: 500,
@@ -126,6 +131,11 @@ function buildInitialDoctors(): DoctorRow[] {
       hospital_id: DEMO_HOSPITAL_ID,
       name: 'Dr. Amol Deshmukh',
       department: 'General Medicine',
+      department_i18n: {
+        en: 'General Medicine',
+        mr: 'सामान्य वैद्यक',
+        gu: 'સામાન્ય દવા',
+      },
       room_number: '1',
       is_active: true,
       display_order: 1,
@@ -136,6 +146,11 @@ function buildInitialDoctors(): DoctorRow[] {
       hospital_id: DEMO_HOSPITAL_ID,
       name: 'Dr. Swapnil Patil',
       department: 'ENT',
+      department_i18n: {
+        en: 'ENT',
+        mr: 'कान, नाक व घसा',
+        gu: 'કાન, નાક અને ગળું',
+      },
       room_number: '2',
       is_active: true,
       display_order: 2,
@@ -165,8 +180,14 @@ function readState(): DemoState {
     }
 
     return {
-      hospital: parsed.hospital,
-      doctors: parsed.doctors,
+      hospital: {
+        ...parsed.hospital,
+        display_message_i18n: parsed.hospital.display_message_i18n ?? {},
+      },
+      doctors: parsed.doctors.map((doctor) => ({
+        ...doctor,
+        department_i18n: doctor.department_i18n ?? {},
+      })),
       entries: parsed.entries,
     }
   } catch {
@@ -647,6 +668,7 @@ function publicQueueFor(state: DemoState, doctorId: string): PublicQueueResult |
     doctor_id: doctor.id,
     doctor_name: doctor.name,
     department: doctor.department,
+    department_i18n: doctor.department_i18n,
     room_number: doctor.room_number,
     is_active: doctor.is_active,
     hospital_name: state.hospital.name,
@@ -654,6 +676,7 @@ function publicQueueFor(state: DemoState, doctorId: string): PublicQueueResult |
     hospital_phone: state.hospital.phone,
     hospital_timezone: state.hospital.timezone,
     display_message: state.hospital.display_message,
+    display_message_i18n: state.hospital.display_message_i18n,
     announcement_enabled: state.hospital.announcement_enabled,
     avg_consultation_minutes: state.hospital.avg_consultation_minutes,
     queue_date: queueDate,
@@ -685,12 +708,14 @@ function publicHospitalQueueFor(state: DemoState, hospitalId: string): PublicHos
         hospital_phone: state.hospital.phone,
         hospital_timezone: state.hospital.timezone,
         display_message: state.hospital.display_message,
+        display_message_i18n: state.hospital.display_message_i18n,
         announcement_enabled: state.hospital.announcement_enabled,
         avg_consultation_minutes: state.hospital.avg_consultation_minutes,
         queue_date: queueDate,
         doctor_id: null,
         doctor_name: null,
         department: null,
+        department_i18n: null,
         room_number: null,
         display_order: null,
         current_token: null,
@@ -712,12 +737,14 @@ function publicHospitalQueueFor(state: DemoState, hospitalId: string): PublicHos
       hospital_phone: state.hospital.phone,
       hospital_timezone: state.hospital.timezone,
       display_message: state.hospital.display_message,
+      display_message_i18n: state.hospital.display_message_i18n,
       announcement_enabled: state.hospital.announcement_enabled,
       avg_consultation_minutes: state.hospital.avg_consultation_minutes,
       queue_date: queueDate,
       doctor_id: doctor.id,
       doctor_name: doctor.name,
       department: doctor.department,
+      department_i18n: doctor.department_i18n,
       room_number: doctor.room_number,
       display_order: doctor.display_order,
       current_token: snapshot.currentToken,
@@ -772,6 +799,7 @@ function tokenStatusFor(state: DemoState, publicId: string): TokenStatusResult |
     doctor_id: doctor.id,
     doctor_name: doctor.name,
     department: doctor.department,
+    department_i18n: doctor.department_i18n,
     room_number: doctor.room_number,
     hospital_name: state.hospital.name,
     hospital_phone: state.hospital.phone,
@@ -838,6 +866,7 @@ export const demoDataSource: QueueDataSource = {
       hospital_id: state.hospital.id,
       name: normaliseName(input.name),
       department: input.department.trim(),
+      department_i18n: input.departmentI18n,
       room_number: input.roomNumber.trim(),
       is_active: input.isActive,
       display_order: input.displayOrder ?? state.doctors.length + 1,
@@ -861,6 +890,8 @@ export const demoDataSource: QueueDataSource = {
       ...existing,
       name: input.name !== undefined ? normaliseName(input.name) : existing.name,
       department: input.department !== undefined ? input.department.trim() : existing.department,
+      department_i18n:
+        input.departmentI18n !== undefined ? input.departmentI18n : existing.department_i18n,
       room_number: input.roomNumber !== undefined ? input.roomNumber.trim() : existing.room_number,
       is_active: input.isActive ?? existing.is_active,
       display_order: input.displayOrder ?? existing.display_order,
@@ -1072,6 +1103,7 @@ export const demoDataSource: QueueDataSource = {
         out_doctor_id: doctor.id,
         doctor_name: doctor.name,
         department: doctor.department,
+        department_i18n: doctor.department_i18n,
         room_number: doctor.room_number,
       }
     })
@@ -1141,6 +1173,7 @@ export const demoDataSource: QueueDataSource = {
       timezone: input.timezone,
       announcement_enabled: input.announcementEnabled,
       display_message: input.displayMessage,
+      display_message_i18n: input.displayMessageI18n,
       avg_consultation_minutes: input.avgConsultationMinutes,
     }
     writeState(state)

@@ -12,6 +12,7 @@ import { useLanguage } from '../hooks/useLanguage'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
+import { localizedValue } from '../lib/i18n/content'
 import { cn } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -25,7 +26,7 @@ import { StaffLayout } from '../layouts/StaffLayout'
 export function DoctorsPage() {
   const { doctors, loading, error, reload } = useDoctors({ includeInactive: true })
   const { hospital } = useHospital()
-  const { messages } = useLanguage()
+  const { language, messages } = useLanguage()
   const t = messages.ui.doctors
 
   const [adding, setAdding] = useState(false)
@@ -167,7 +168,8 @@ export function DoctorsPage() {
                               ) : null}
                             </p>
                             <p className="text-sm text-slate-600">
-                              {doctor.department || '—'}
+                              {localizedValue(doctor.departmentI18n, language, doctor.department) ||
+                                '—'}
                               {doctor.roomNumber ? ` · ${messages.roomShort(doctor.roomNumber)}` : ''}
                             </p>
                           </div>

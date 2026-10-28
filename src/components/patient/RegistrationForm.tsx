@@ -3,6 +3,7 @@ import { useId, useRef, useState, type FormEvent } from 'react'
 
 import { useLanguage } from '../../hooks/useLanguage'
 import { isTurnstileEnabled } from '../../lib/env'
+import { localizedValue } from '../../lib/i18n/content'
 import { cn } from '../../lib/utils'
 import { validateRegistration, type RegistrationField } from '../../lib/validation'
 import type { PatientType } from '../../types/database'
@@ -69,7 +70,7 @@ export function RegistrationForm({
   const nameRef = useRef<HTMLInputElement>(null)
   const doctorGroupRef = useRef<HTMLFieldSetElement>(null)
 
-  const { messages } = useLanguage()
+  const { language, messages } = useLanguage()
   const t = messages.ui.registrationForm
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -212,7 +213,9 @@ export function RegistrationForm({
                     ) : null}
                   </span>
                   {doctor.department ? (
-                    <span className="text-sm text-slate-600">{doctor.department}</span>
+                    <span className="text-sm text-slate-600">
+                      {localizedValue(doctor.departmentI18n, language, doctor.department)}
+                    </span>
                   ) : null}
                   {doctor.roomNumber ? (
                     <span className="text-sm text-slate-500">{messages.roomShort(doctor.roomNumber)}</span>

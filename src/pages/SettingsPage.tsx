@@ -6,8 +6,10 @@ import { Card, CardBody, CardHeader } from '../components/common/Card'
 import { ErrorState, LoadingState } from '../components/common/Feedback'
 import { useHospital } from '../hooks/useHospital'
 import { useLanguage } from '../hooks/useLanguage'
+import { useStaffAuth } from '../hooks/useStaffAuth'
 import { dataSource } from '../lib/datasource'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
+import { buildLocalizedText } from '../lib/i18n/content'
 import { DEFAULT_TIME_ZONE, isValidTimeZone } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 
@@ -26,6 +28,7 @@ const INPUT_CLASSES =
  */
 export function SettingsPage() {
   const { hospital, loading, reload } = useHospital()
+  const { session } = useStaffAuth()
   const { messages } = useLanguage()
   const t = messages.ui.settings
 
@@ -34,6 +37,8 @@ export function SettingsPage() {
   const phoneId = useId()
   const timezoneId = useId()
   const messageId = useId()
+  const messageMrId = useId()
+  const messageGuId = useId()
   const avgId = useId()
   const announceId = useId()
 
@@ -42,6 +47,8 @@ export function SettingsPage() {
   const [phone, setPhone] = useState('')
   const [timezone, setTimezone] = useState('Asia/Kolkata')
   const [displayMessage, setDisplayMessage] = useState('')
+  const [displayMessageMr, setDisplayMessageMr] = useState('')
+  const [displayMessageGu, setDisplayMessageGu] = useState('')
   const [avgMinutes, setAvgMinutes] = useState('10')
   const [announcementEnabled, setAnnouncementEnabled] = useState(true)
 
@@ -57,6 +64,8 @@ export function SettingsPage() {
     setPhone(hospital.phone ?? '')
     setTimezone(hospital.timezone)
     setDisplayMessage(hospital.display_message)
+    setDisplayMessageMr(hospital.display_message_i18n?.mr ?? '')
+    setDisplayMessageGu(hospital.display_message_i18n?.gu ?? '')
     setAvgMinutes(String(hospital.avg_consultation_minutes))
     setAnnouncementEnabled(hospital.announcement_enabled)
   }, [hospital])
@@ -90,6 +99,11 @@ export function SettingsPage() {
         timezone: trimmedTimeZone,
         announcementEnabled,
         displayMessage,
+        displayMessageI18n: buildLocalizedText(
+          displayMessage,
+          displayMessageMr,
+          displayMessageGu,
+        ),
         avgConsultationMinutes:
           Number.isFinite(parsedAvg) && parsedAvg >= 1 && parsedAvg <= 240 ? parsedAvg : 10,
       })
@@ -101,6 +115,14 @@ export function SettingsPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (session && session.role !== 'ADMIN') {
+    return (
+      <StaffLayout>
+        <ErrorState message={messages.errors.NOT_AUTHORIZED} />
+      </StaffLayout>
+    )
   }
 
   if (loading) {
@@ -163,7 +185,7 @@ export function SettingsPage() {
                     id={phoneId}
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
-                    placeholder="+91 20 1234 5678"
+                    placeholder={t.phonePlaceholder}
                     maxLength={32}
                     className={INPUT_CLASSES}
                   />
@@ -177,7 +199,7 @@ export function SettingsPage() {
                     id={timezoneId}
                     value={timezone}
                     onChange={(event) => setTimezone(event.target.value)}
-                    placeholder="Asia/Kolkata"
+                    placeholder={t.timezonePlaceholder}
                     maxLength={64}
                     className={INPUT_CLASSES}
                   />
@@ -212,6 +234,38 @@ export function SettingsPage() {
                     onChange={(event) => setDisplayMessage(event.target.value)}
                     placeholder={t.displayMessagePlaceholder}
                     maxLength={160}
+                    className={INPUT_CLASSES}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor={messageMrId} className="text-sm font-semibold text-slate-800">
+                    {t.displayMessageMr}
+                  </label>
+                  <input
+                    id={messageMrId}
+                    value={displayMessageMr}
+                    onChange={(event) => setDisplayMessageMr(event.target.value)}
+                    placeholder={t.displayMessagePlaceholder}
+                    maxLength={160}
+                    lang="mr"
+                    className={INPUT_CLASSES}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor={messageGuId} className="text-sm font-semibold text-slate-800">
+                    {t.displayMessageGu}
+                  </label>
+                  <input
+                    id={messageGuId}
+                    value={displayMessageGu}
+                    onChange={(event) => setDisplayMessageGu(event.target.value)}
+                    placeholder={t.displayMessagePlaceholder}
+                    maxLength={160}
+                    lang="gu"
                     className={INPUT_CLASSES}
                   />
                 </div>

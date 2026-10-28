@@ -1,5 +1,5 @@
 import { BellRing, ExternalLink, Info, Users } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { AnnouncementToggle } from '../components/common/AnnouncementToggle'
@@ -18,6 +18,7 @@ import { hourLabel, secondsToMinutes } from '../lib/analytics'
 import { dataSource } from '../lib/datasource'
 import { displayUrl } from '../lib/env'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
+import { localizedValue } from '../lib/i18n/content'
 import { countRemaining, deriveSnapshot, findNextWaitingToken } from '../lib/queue'
 import { speak } from '../lib/speech'
 import { cn, todayInTimeZone } from '../lib/utils'
@@ -43,6 +44,8 @@ export function StaffDashboardPage() {
   const [callNextBusy, setCallNextBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const actionInFlightRef = useRef(false)
+  const callNextInFlightRef = useRef(false)
 
   const timezone = hospital?.timezone ?? 'Asia/Kolkata'
   const queueDate = todayInTimeZone(timezone)
@@ -62,6 +65,8 @@ export function StaffDashboardPage() {
   /** Wraps a queue mutation with busy state and error reporting. */
   const runAction = useCallback(
     async (publicId: string | null, action: () => Promise<void>) => {
+      if (actionInFlightRef.current) return
+      actionInFlightRef.current = true
       setBusyPublicId(publicId)
       setActionError(null)
       try {
@@ -71,6 +76,7 @@ export function StaffDashboardPage() {
         logTechnicalError('StaffDashboardPage — action', caught)
         setActionError(toUserMessage(caught, messages))
       } finally {
+        actionInFlightRef.current = false
         setBusyPublicId(null)
       }
     },
@@ -78,7 +84,8 @@ export function StaffDashboardPage() {
   )
 
   const handleCallNext = useCallback(async () => {
-    if (!activeDoctorId || callNextBusy) return
+    if (!activeDoctorId || callNextInFlightRef.current) return
+    callNextInFlightRef.current = true
 
     setCallNextBusy(true)
     setActionError(null)
@@ -102,9 +109,10 @@ export function StaffDashboardPage() {
       logTechnicalError('StaffDashboardPage — callNext', caught)
       setActionError(toUserMessage(caught, messages))
     } finally {
+      callNextInFlightRef.current = false
       setCallNextBusy(false)
     }
-  }, [activeDoctorId, callNextBusy, language, messages, refresh, t.queueEmptyNotice])
+  }, [activeDoctorId, language, messages, refresh, t.queueEmptyNotice])
 
   const handleRecall = (entry: QueueEntryView) =>
     runAction(entry.publicId, async () => {
@@ -260,7 +268,8 @@ export function StaffDashboardPage() {
                   >
                     <span className="text-base font-bold text-slate-900">{doctor.name}</span>
                     <span className="text-xs text-slate-500">
-                      {doctor.department} · {messages.roomShort(doctor.roomNumber)}
+                      {localizedValue(doctor.departmentI18n, language, doctor.department)} ·{' '}
+                      {messages.roomShort(doctor.roomNumber)}
                     </span>
                   </button>
                 )
@@ -276,7 +285,10 @@ export function StaffDashboardPage() {
               <div className="flex flex-col gap-1">
                 <p className="text-lg font-bold text-slate-900">{activeDoctor?.name}</p>
                 <p className="text-sm text-slate-600">
-                  {activeDoctor?.department} · {messages.roomShort(activeDoctor?.roomNumber ?? '')}
+                  {activeDoctor
+                    ? localizedValue(activeDoctor.departmentI18n, language, activeDoctor.department)
+                    : ''}{' '}
+                  · {messages.roomShort(activeDoctor?.roomNumber ?? '')}
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-x-8 gap-y-2">

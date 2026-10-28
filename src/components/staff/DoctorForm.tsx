@@ -2,6 +2,7 @@ import { AlertCircle } from 'lucide-react'
 import { useId, useState, type FormEvent } from 'react'
 
 import { useLanguage } from '../../hooks/useLanguage'
+import { buildLocalizedText, type LocalizedText } from '../../lib/i18n/content'
 import { cn, normaliseName } from '../../lib/utils'
 import type { DoctorOption } from '../../types/queue'
 import { Button } from '../common/Button'
@@ -9,6 +10,7 @@ import { Button } from '../common/Button'
 export interface DoctorFormValues {
   name: string
   department: string
+  departmentI18n: LocalizedText
   roomNumber: string
   isActive: boolean
 }
@@ -40,6 +42,8 @@ export function DoctorForm({
 }: DoctorFormProps) {
   const nameId = useId()
   const departmentId = useId()
+  const departmentMrId = useId()
+  const departmentGuId = useId()
   const roomId = useId()
   const activeId = useId()
   const errorId = useId()
@@ -49,6 +53,8 @@ export function DoctorForm({
 
   const [name, setName] = useState(initial?.name ?? '')
   const [department, setDepartment] = useState(initial?.department ?? '')
+  const [departmentMr, setDepartmentMr] = useState(initial?.departmentI18n?.mr ?? '')
+  const [departmentGu, setDepartmentGu] = useState(initial?.departmentI18n?.gu ?? '')
   const [roomNumber, setRoomNumber] = useState(initial?.roomNumber ?? '')
   const [isActive, setIsActive] = useState(initial?.isActive ?? true)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +73,7 @@ export function DoctorForm({
     onSubmit({
       name: trimmedName,
       department: department.trim(),
+      departmentI18n: buildLocalizedText(department, departmentMr, departmentGu),
       roomNumber: roomNumber.trim(),
       isActive,
     })
@@ -119,6 +126,43 @@ export function DoctorForm({
           />
         </div>
       </div>
+
+      <fieldset className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3">
+        <legend className="px-1 text-sm font-semibold text-slate-800">
+          {t.departmentTranslations}
+        </legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={departmentMrId} className="text-sm font-medium text-slate-700">
+              <span lang="mr">मराठी</span>
+            </label>
+            <input
+              id={departmentMrId}
+              value={departmentMr}
+              onChange={(event) => setDepartmentMr(event.target.value)}
+              placeholder={t.departmentPlaceholder}
+              maxLength={80}
+              lang="mr"
+              className={INPUT_CLASSES}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={departmentGuId} className="text-sm font-medium text-slate-700">
+              <span lang="gu">ગુજરાતી</span>
+            </label>
+            <input
+              id={departmentGuId}
+              value={departmentGu}
+              onChange={(event) => setDepartmentGu(event.target.value)}
+              placeholder={t.departmentPlaceholder}
+              maxLength={80}
+              lang="gu"
+              className={INPUT_CLASSES}
+            />
+          </div>
+        </div>
+      </fieldset>
 
       <label
         htmlFor={activeId}

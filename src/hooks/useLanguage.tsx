@@ -48,8 +48,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // before any language is known), and this replaces it once the choice loads.
   useEffect(() => {
     if (typeof document !== 'undefined') {
+      const messages = getMessages(language)
       document.documentElement.lang = language
-      document.title = getMessages(language).ui.common.queueSystem
+      document.title = messages.ui.common.queueSystem
+      document
+        .querySelector('meta[name="description"]')
+        ?.setAttribute('content', messages.ui.common.appDescription)
     }
   }, [language])
 

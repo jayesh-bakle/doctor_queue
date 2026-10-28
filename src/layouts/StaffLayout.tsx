@@ -34,6 +34,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
 
   // Built here rather than at module scope because the labels are translated.
   const canViewAnalytics = session?.role === 'ADMIN' || session?.isPlatformAdmin === true
+  const canManageSettings = session?.role === 'ADMIN'
   const navItems = [
     { to: '/staff/dashboard', label: m.nav.queue, icon: LayoutList },
     ...(canViewAnalytics
@@ -43,7 +44,9 @@ export function StaffLayout({ children }: { children: ReactNode }) {
       ? [{ to: '/admin', label: m.nav.admin, icon: ShieldCheck }]
       : []),
     { to: '/staff/doctors', label: m.nav.doctors, icon: Stethoscope },
-    { to: '/staff/settings', label: m.nav.settings, icon: Settings },
+    ...(canManageSettings
+      ? [{ to: '/staff/settings', label: m.nav.settings, icon: Settings }]
+      : []),
     { to: '/qr', label: m.nav.qr, icon: QrCode },
   ]
 

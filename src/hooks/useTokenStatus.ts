@@ -39,6 +39,7 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
 
   const mountedRef = useRef(true)
   const dataRef = useRef<TokenStatusResult | null>(null)
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     mountedRef.current = true
@@ -52,6 +53,8 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
   }, [data])
 
   const loadFull = useCallback(async () => {
+    const requestId = ++requestIdRef.current
+
     // Clear the cursor first: on a route change the previous token's data is
     // still in the ref, and a COMPLETED status there would stop the new token's
     // poll loop before it ever ran.
@@ -65,7 +68,7 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
 
     try {
       const result = await dataSource.getTokenStatus(publicId)
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       if (!result) {
         setNotFound(true)
         setData(null)
@@ -77,17 +80,19 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
       }
       setErrorCode(null)
     } catch (caught) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       logTechnicalError('useTokenStatus', caught)
       setErrorCode(toUserErrorCode(caught))
     } finally {
-      if (mountedRef.current) setLoading(false)
+      if (mountedRef.current && requestId === requestIdRef.current) setLoading(false)
     }
   }, [publicId])
 
   /** One poll. Falls back to the full read if the first load has not landed. */
   const poll = useCallback(async () => {
     if (!publicId || !mountedRef.current) return
+
+    const requestId = ++requestIdRef.current
 
     try {
       if (!dataRef.current) {
@@ -96,7 +101,7 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
       }
 
       const pulse = await dataSource.getTokenPulse(publicId)
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
 
       if (!pulse) {
         setNotFound(true)
@@ -111,7 +116,7 @@ export function useTokenStatus(publicId: string | undefined): UseTokenStatusResu
       dataRef.current = merged
       setErrorCode(null)
     } catch (caught) {
-      if (!mountedRef.current) return
+      if (!mountedRef.current || requestId !== requestIdRef.current) return
       logTechnicalError('useTokenStatus — pulse', caught)
       setErrorCode(toUserErrorCode(caught))
     }

@@ -45,7 +45,7 @@ then the `create schema` and grants as a second query.
 
 ---
 
-## 2. Rebuild the structure — all eleven migrations, in this order
+## 2. Rebuild the structure — all thirteen migrations, in this order
 
 For each file: open `supabase/migrations/<file>`, copy the **entire** file into the SQL Editor, and
 run it. Wait for success before starting the next one.
@@ -61,13 +61,16 @@ run it. Wait for success before starting the next one.
 9. `009_hospital_changes.sql`
 10. `010_big_hospital_hardening.sql`
 11. `011_analytics.sql`
+12. `012_i18n_content.sql`
+13. `013_security_hardening.sql`
 
-Order matters: 003, 006, 007 and 008 drop and recreate overlapping RPCs, so run them in this
+Order matters: 003, 006, 007, 008 and 012 drop and recreate overlapping RPCs, so run them in this
 order. 009 adds the doctor-change signal used by the TV and recreates `prune_queue_history()` to
 prune that signal table too. 010 raises the default daily cap to 2,000 and adds the export anti-join
 used by `daily-sheet-export`. 011 adds the analytics tables, platform admins, read RPCs and the
-90-day backfill; it depends on 009 and 010. If `pg_cron` is installed, 011 also schedules the
-refresh jobs (README section 18). Do not run the `revoke execute on register_patient` statement at
+90-day backfill; it depends on 009 and 010. 012 adds per-language department and TV-message fields
+and returns them from the patient, TV and call-next RPCs. If `pg_cron` is installed, 011 also
+schedules the refresh jobs (README section 18). Do not run the `revoke execute on register_patient` statement at
 the bottom of 008 until the `register-patient` Edge Function is deployed (README section 8).
 
 **Do not run `supabase/seed.sql` for a real deployment.** It inserts the sample

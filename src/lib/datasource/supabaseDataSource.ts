@@ -144,6 +144,7 @@ export const supabaseDataSource: QueueDataSource = {
         hospital_id: staff.hospitalId,
         name: input.name.trim(),
         department: input.department.trim(),
+        department_i18n: input.departmentI18n,
         room_number: input.roomNumber.trim(),
         is_active: input.isActive,
         display_order: input.displayOrder ?? 0,
@@ -165,6 +166,7 @@ export const supabaseDataSource: QueueDataSource = {
     const patch: Record<string, unknown> = {}
     if (input.name !== undefined) patch.name = input.name.trim()
     if (input.department !== undefined) patch.department = input.department.trim()
+    if (input.departmentI18n !== undefined) patch.department_i18n = input.departmentI18n
     if (input.roomNumber !== undefined) patch.room_number = input.roomNumber.trim()
     if (input.isActive !== undefined) patch.is_active = input.isActive
     if (input.displayOrder !== undefined) patch.display_order = input.displayOrder
@@ -185,30 +187,10 @@ export const supabaseDataSource: QueueDataSource = {
   },
 
   async deleteDoctor(id: string): Promise<void> {
-    const supabase = getSupabase()
-
-    // Both `queue_entries.doctor_id` and `queue_events.doctor_id` are
-    // `on delete cascade`, so a bare DELETE would quietly take every patient
-    // record this doctor ever saw along with it. Check first and refuse: a
-    // real doctor is taken off the queue by deactivating, which keeps their
-    // history and simply hides them from the patient form.
-    const { count, error: countError } = await supabase
-      .from('queue_entries')
-      .select('public_id', { count: 'exact', head: true })
-      .eq('doctor_id', id)
-
-    if (countError) {
-      logTechnicalError('deleteDoctor — history check', countError)
-      throw toAppError(countError)
-    }
-    if ((count ?? 0) > 0) throw new AppError('DOCTOR_HAS_HISTORY')
-
-    const { error } = await supabase.from('doctors').delete().eq('id', id)
-
-    if (error) {
-      logTechnicalError('deleteDoctor', error)
-      throw toAppError(error)
-    }
+    // Direct DELETE is revoked in 013. The RPC checks the caller's hospital and
+    // refuses when the doctor has any queue history, inside the same
+    // transaction as the delete.
+    await callRpc<null>('delete_doctor', { p_doctor_id: id }, 'deleteDoctor')
   },
 
   // ---- patient ----------------------------------------------------------
@@ -465,6 +447,7 @@ export const supabaseDataSource: QueueDataSource = {
         timezone: input.timezone,
         announcement_enabled: input.announcementEnabled,
         display_message: input.displayMessage,
+        display_message_i18n: input.displayMessageI18n,
         avg_consultation_minutes: input.avgConsultationMinutes,
       })
       .eq('id', staff.hospitalId)

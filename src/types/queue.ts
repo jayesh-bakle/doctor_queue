@@ -1,3 +1,4 @@
+import type { LocalizedText } from '../lib/i18n/content'
 import type { PatientType, QueueStatus } from './database'
 
 /** The derived state of one doctor's queue — mirrors `compute_queue_snapshot()` in SQL. */
@@ -27,6 +28,7 @@ export interface DoctorOption {
   id: string
   name: string
   department: string
+  departmentI18n: LocalizedText
   roomNumber: string
   isActive: boolean
   displayOrder: number

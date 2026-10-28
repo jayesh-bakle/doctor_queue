@@ -369,7 +369,12 @@ suite('row level security', () => {
   })
 
   it('keeps the staff-only functions away from anon', async () => {
-    for (const fn of ['call_next_patient(uuid)', 'skip_patient(uuid)', 'complete_patient(uuid)']) {
+    for (const fn of [
+      'call_next_patient(uuid)',
+      'skip_patient(uuid)',
+      'complete_patient(uuid)',
+      'delete_doctor(uuid)',
+    ]) {
       const rows = await query<{ allowed: boolean }>(
         pool,
         `select has_function_privilege('anon', $1, 'EXECUTE') as allowed`,
@@ -397,6 +402,20 @@ suite('row level security', () => {
       )
       expect(rows[0]!.allowed, `anon cannot execute ${fn}`).toBe(true)
     }
+  })
+
+  it('routes doctor deletion through the history-checking RPC', async () => {
+    const [table] = await query<{ can_delete: boolean }>(
+      pool,
+      `select has_table_privilege('authenticated', 'doctors', 'DELETE') as can_delete`,
+    )
+    expect(table!.can_delete).toBe(false)
+
+    const [rpc] = await query<{ allowed: boolean }>(
+      pool,
+      `select has_function_privilege('authenticated', 'delete_doctor(uuid)', 'EXECUTE') as allowed`,
+    )
+    expect(rpc!.allowed).toBe(true)
   })
 })
 

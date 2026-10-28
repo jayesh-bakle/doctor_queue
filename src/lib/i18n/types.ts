@@ -47,6 +47,8 @@ export interface UiMessages {
     cancel: string
     hospitalFallback: string
     queueSystem: string
+    /** Used for the page's meta description. */
+    appDescription: string
     /** Shown for a value the patient never supplied. */
     notProvided: string
     online: string
@@ -292,12 +294,16 @@ export interface UiMessages {
     namePlaceholder: string
     address: string
     phone: string
+    phonePlaceholder: string
     timezone: string
+    timezonePlaceholder: string
     timezoneHint: string
     avgMinutes: string
     avgHint: string
     displayMessage: string
     displayMessagePlaceholder: string
+    displayMessageMr: string
+    displayMessageGu: string
     announceAloud: string
     saved: string
     save: string
@@ -342,6 +348,7 @@ export interface UiMessages {
     namePlaceholder: string
     departmentLabel: string
     departmentPlaceholder: string
+    departmentTranslations: string
     roomLabel: string
     roomPlaceholder: string
     activeLabel: string
@@ -356,7 +363,19 @@ export interface UiMessages {
     /** Spoken back when the toggle is switched on, to prove audio works. */
     turnedOnSpoken: string
     unsupported: string
+    usingVoice: (voiceName: string) => string
     fallbackVoice: string
+    installHint: string
+  }
+
+  setup: {
+    title: string
+    description: string
+    optionA: string
+    migrationsHint: (count: number) => string
+    optionB: string
+    demoDescription: string
+    restartHint: string
   }
 
   demo: {

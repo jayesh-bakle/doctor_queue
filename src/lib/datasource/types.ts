@@ -28,6 +28,7 @@ import type {
   TodaySummary,
 } from '../../types/analytics'
 import type { DoctorOption, QueueEntryView } from '../../types/queue'
+import type { LocalizedText } from '../i18n/content'
 
 export interface RegisterPatientInput {
   doctorId: string
@@ -44,6 +45,7 @@ export interface RegisterPatientInput {
 export interface DoctorInput {
   name: string
   department: string
+  departmentI18n: LocalizedText
   roomNumber: string
   isActive: boolean
   displayOrder?: number
@@ -56,6 +58,7 @@ export interface HospitalSettingsInput {
   timezone: string
   announcementEnabled: boolean
   displayMessage: string
+  displayMessageI18n: LocalizedText
   avgConsultationMinutes: number
 }
 
@@ -89,6 +92,7 @@ export function toDoctorOption(row: DoctorRow): DoctorOption {
     id: row.id,
     name: row.name,
     department: row.department,
+    departmentI18n: row.department_i18n,
     roomNumber: row.room_number,
     isActive: row.is_active,
     displayOrder: row.display_order,

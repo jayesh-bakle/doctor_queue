@@ -12,6 +12,7 @@ import {
   saveStoredLanguage,
 } from '../src/lib/i18n'
 import type { Language, Messages } from '../src/lib/i18n'
+import { buildLocalizedText, localizedValue } from '../src/lib/i18n/content'
 import type { QueueStatus } from '../src/types/database'
 import { demoStorage, installBrowserEnv } from './helpers/browserEnv'
 
@@ -355,5 +356,32 @@ describe('UiMessages completeness', () => {
     for (const [language, messages] of everyLanguage) {
       expect(messages.ui.qr.posterHeading, language).not.toMatch(/<|>/)
     }
+  })
+})
+
+describe('localized content', () => {
+  it('reads the selected language first, then English, then the stored original', () => {
+    const value = {
+      en: 'General Medicine',
+      mr: 'Marathi department',
+      gu: 'Gujarati department',
+    }
+
+    expect(localizedValue(value, 'mr', 'fallback')).toBe('Marathi department')
+    expect(localizedValue(value, 'gu', 'fallback')).toBe('Gujarati department')
+    expect(localizedValue(value, 'en', 'fallback')).toBe('General Medicine')
+    expect(localizedValue({ en: 'General Medicine' }, 'mr', 'Marathi department')).toBe(
+      'General Medicine',
+    )
+    expect(localizedValue({}, 'mr', 'Marathi department')).toBe('Marathi department')
+  })
+
+  it('drops blank translations so a half-filled form falls back cleanly', () => {
+    expect(buildLocalizedText('General Medicine', '  ', null)).toEqual({
+      en: 'General Medicine',
+    })
+    expect(buildLocalizedText('', 'Marathi department', '')).toEqual({
+      mr: 'Marathi department',
+    })
   })
 })

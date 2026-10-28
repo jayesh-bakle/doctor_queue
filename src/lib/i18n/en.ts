@@ -257,6 +257,7 @@ export const en: Messages = {
       cancel: 'Cancel',
       hospitalFallback: 'Your hospital',
       queueSystem: 'Patient queue management',
+      appDescription: 'Patient queue and token management for clinics.',
       notProvided: 'Not provided',
       online: 'Connected',
       connectionLost: 'Connection lost',
@@ -497,12 +498,16 @@ export const en: Messages = {
       namePlaceholder: 'Your hospital name',
       address: 'Address',
       phone: 'Phone',
+      phonePlaceholder: '+91 20 1234 5678',
       timezone: 'Time zone',
+      timezonePlaceholder: 'Asia/Kolkata',
       timezoneHint: 'The queue restarts at midnight in this time zone.',
       avgMinutes: 'Average consultation time (minutes)',
       avgHint: 'Used only to estimate the waiting time shown to patients.',
       displayMessage: 'Message on the TV',
       displayMessagePlaceholder: 'Please wait for your number to be called.',
+      displayMessageMr: 'Message in Marathi',
+      displayMessageGu: 'Message in Gujarati',
       announceAloud: 'Announce numbers aloud',
       saved: 'Settings saved.',
       save: 'Save',
@@ -547,6 +552,7 @@ export const en: Messages = {
       namePlaceholder: 'e.g. Dr Amol Deshmukh',
       departmentLabel: 'Department',
       departmentPlaceholder: 'e.g. General medicine',
+      departmentTranslations: 'Department translations',
       roomLabel: 'Room number',
       roomPlaceholder: 'e.g. 1',
       activeLabel: 'Queue open (shown on the registration form)',
@@ -558,9 +564,26 @@ export const en: Messages = {
       turnOff: 'Turn sound off',
       turnOn: 'Turn sound on',
       turnedOnSpoken: 'Sound is on.',
-      unsupported: 'This browser has no voice for the selected language. The queue still works.',
+      unsupported: 'This browser cannot speak. The queue still works.',
+      usingVoice: (voiceName) => `Using voice: ${voiceName}`,
       fallbackVoice:
-        'No voice was found for this language — a different one will be used, so pronunciation may differ.',
+        'No voice was found for this language — the device default will be used, so pronunciation may be wrong.',
+      installHint:
+        'Install a Marathi or Gujarati voice in your device settings for correct pronunciation.',
+    },
+
+    setup: {
+      title: 'Setup is not complete',
+      description:
+        'The application needs a Supabase project, or demo mode to run without one. Create a .env file in the project root with one of the following.',
+      optionA: 'Option A — connect to Supabase',
+      migrationsHint: (count) =>
+        `Then run the ${count} migrations in supabase/migrations/ in order, followed by supabase/seed.sql. See the README for the full walkthrough.`,
+      optionB: 'Option B — run offline in demo mode',
+      demoDescription:
+        'Runs the whole system against an in-browser mock — no database, no internet, no credentials. All three interfaces work. Data lives only in this browser.',
+      restartHint:
+        'Restart the dev server after creating .env — Vite reads environment variables at startup.',
     },
 
     demo: {

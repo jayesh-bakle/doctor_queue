@@ -1,4 +1,5 @@
-import type { Messages } from '../../lib/i18n'
+import type { Messages, Language } from '../../lib/i18n'
+import { localizedValue } from '../../lib/i18n/content'
 import type { PublicHospitalQueueRow } from '../../types/database'
 import { cn } from '../../lib/utils'
 import { TokenDisplay } from '../common/TokenDisplay'
@@ -6,6 +7,7 @@ import { TokenDisplay } from '../common/TokenDisplay'
 interface DoctorCardProps {
   doctor: PublicHospitalQueueRow
   messages: Messages
+  language: Language
   dense: boolean
   highlighted: boolean
   className?: string
@@ -22,12 +24,16 @@ interface DoctorCardProps {
 export function DoctorCard({
   doctor,
   messages,
+  language,
   dense,
   highlighted,
   className,
 }: DoctorCardProps) {
   const t = messages.ui.display
-  const meta = [doctor.department, doctor.room_number ? messages.roomShort(doctor.room_number) : null]
+  const department = doctor.department
+    ? localizedValue(doctor.department_i18n, language, doctor.department)
+    : null
+  const meta = [department, doctor.room_number ? messages.roomShort(doctor.room_number) : null]
     .filter(Boolean)
     .join(' · ')
 

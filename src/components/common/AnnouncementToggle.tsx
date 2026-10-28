@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useLanguage } from '../../hooks/useLanguage'
 import {
+  cancelSpeech,
   getSpeechStatus,
   isAnnouncementEnabled,
   isSpeechSupported,
@@ -33,7 +34,14 @@ export function AnnouncementToggle({ className }: { className?: string }) {
   useEffect(() => {
     setStatus(getSpeechStatus(language))
     // Chrome populates its voice list asynchronously; re-check when it lands.
-    return onVoicesChanged(() => setStatus(getSpeechStatus(language)))
+    const unsubscribe = onVoicesChanged(() => setStatus(getSpeechStatus(language)))
+
+    // A sentence already in progress is in the old language. Stop it rather
+    // than letting it finish under a screen that has just changed language.
+    return () => {
+      unsubscribe()
+      cancelSpeech()
+    }
   }, [language])
 
   const toggle = useCallback(() => {
@@ -76,8 +84,21 @@ export function AnnouncementToggle({ className }: { className?: string }) {
         <p className="max-w-xs text-xs text-slate-500">{messages.ui.announcement.unsupported}</p>
       ) : null}
 
+      {enabled && supported && !status.usingFallback && status.voiceName ? (
+        <p className="max-w-xs text-xs text-slate-500">
+          {messages.ui.announcement.usingVoice(status.voiceName)}
+        </p>
+      ) : null}
+
       {enabled && supported && status.usingFallback ? (
-        <p className="max-w-xs text-xs text-amber-700">{messages.ui.announcement.fallbackVoice}</p>
+        <>
+          <p className="max-w-xs text-xs text-amber-700">
+            {messages.ui.announcement.fallbackVoice}
+          </p>
+          <p className="max-w-xs text-xs text-slate-500">
+            {messages.ui.announcement.installHint}
+          </p>
+        </>
       ) : null}
     </div>
   )

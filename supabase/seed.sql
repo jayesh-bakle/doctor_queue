@@ -2,7 +2,7 @@
 -- seed.sql
 -- Doctor Queue System — sample data for local development and demos
 --
--- Run AFTER all ten migrations. Safe to re-run.
+-- Run AFTER all thirteen migrations. Safe to re-run.
 --
 -- UUIDs are fixed so that QR codes, TV display URLs and printed posters stay
 -- valid across database rebuilds.
@@ -11,7 +11,7 @@
 -- -----------------------------------------------------------------------------
 -- Hospital
 -- -----------------------------------------------------------------------------
-insert into hospitals (id, name, address, phone, timezone, announcement_enabled, display_message, avg_consultation_minutes)
+insert into hospitals (id, name, address, phone, timezone, announcement_enabled, display_message, display_message_i18n, avg_consultation_minutes)
 values (
   '11111111-1111-1111-1111-111111111111',
   'श्री गणेश हॉस्पिटल',
@@ -20,6 +20,7 @@ values (
   'Asia/Kolkata',
   true,
   'कृपया आपल्या क्रमांकाची वाट पाहा.',
+  '{"en": "Please wait for your token number to be called.", "mr": "कृपया आपल्या क्रमांकाची वाट पाहा.", "gu": "કૃપા કરીને તમારા ટોકન નંબરની રાહ જુઓ."}'::jsonb,
   10
 )
 on conflict (id) do update set
@@ -27,18 +28,20 @@ on conflict (id) do update set
   address   = excluded.address,
   phone     = excluded.phone,
   timezone  = excluded.timezone,
-  display_message = excluded.display_message;
+  display_message = excluded.display_message,
+  display_message_i18n = excluded.display_message_i18n;
 
 -- -----------------------------------------------------------------------------
 -- Doctors
 -- -----------------------------------------------------------------------------
-insert into doctors (id, hospital_id, name, department, room_number, is_active, display_order)
+insert into doctors (id, hospital_id, name, department, department_i18n, room_number, is_active, display_order)
 values
   (
     '22222222-2222-2222-2222-222222222222',
     '11111111-1111-1111-1111-111111111111',
     'डॉ. अमोल देशमुख',
     'सामान्य वैद्यक',
+    '{"en": "General Medicine", "mr": "सामान्य वैद्यक", "gu": "સામાન્ય દવા"}'::jsonb,
     '१',
     true,
     1
@@ -48,6 +51,7 @@ values
     '11111111-1111-1111-1111-111111111111',
     'डॉ. स्वप्नील पाटील',
     'कान-नाक-घसा',
+    '{"en": "ENT", "mr": "कान-नाक-घसा", "gu": "કાન-નાક-ગળું"}'::jsonb,
     '२',
     true,
     2
@@ -55,6 +59,7 @@ values
 on conflict (id) do update set
   name        = excluded.name,
   department  = excluded.department,
+  department_i18n = excluded.department_i18n,
   room_number = excluded.room_number,
   is_active   = excluded.is_active;
 

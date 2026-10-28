@@ -7,6 +7,8 @@
  * matching type here.
  */
 
+import type { LocalizedText } from '../lib/i18n/content'
+
 export type PatientType = 'NEW' | 'FOLLOWUP'
 
 export type QueueStatus = 'WAITING' | 'CALLED' | 'IN_CONSULTATION' | 'COMPLETED' | 'SKIPPED'
@@ -21,6 +23,7 @@ export interface HospitalRow {
   timezone: string
   announcement_enabled: boolean
   display_message: string
+  display_message_i18n: LocalizedText
   avg_consultation_minutes: number
   /** How many days of finished queue history the nightly prune keeps. */
   retention_days: number
@@ -34,6 +37,7 @@ export interface DoctorRow {
   hospital_id: string
   name: string
   department: string
+  department_i18n: LocalizedText
   room_number: string
   is_active: boolean
   display_order: number
@@ -108,6 +112,7 @@ export interface TokenStatusResult {
   doctor_id: string
   doctor_name: string
   department: string
+  department_i18n: LocalizedText
   room_number: string
   hospital_name: string
   hospital_phone: string | null
@@ -126,6 +131,7 @@ export interface PublicQueueResult {
   doctor_id: string
   doctor_name: string
   department: string
+  department_i18n: LocalizedText
   room_number: string
   is_active: boolean
   hospital_name: string
@@ -134,6 +140,7 @@ export interface PublicQueueResult {
   /** The hospital's own clock, so the TV never assumes IST. */
   hospital_timezone: string
   display_message: string
+  display_message_i18n: LocalizedText
   announcement_enabled: boolean
   avg_consultation_minutes: number
   queue_date: string
@@ -174,12 +181,14 @@ export interface PublicHospitalQueueRow {
   hospital_phone: string | null
   hospital_timezone: string
   display_message: string
+  display_message_i18n: LocalizedText
   announcement_enabled: boolean
   avg_consultation_minutes: number
   queue_date: string
   doctor_id: string | null
   doctor_name: string | null
   department: string | null
+  department_i18n: LocalizedText | null
   room_number: string | null
   display_order: number | null
   current_token: number | null
@@ -196,6 +205,7 @@ export interface CallNextResult {
   out_doctor_id: string
   doctor_name: string
   department: string
+  department_i18n: LocalizedText
   room_number: string
 }
 
