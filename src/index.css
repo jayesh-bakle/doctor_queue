@@ -94,23 +94,64 @@ body {
 
 @supports (font-size: clamp(1rem, 1vw, 2rem)) {
   .tv-token-banner {
-    font-size: clamp(2.5rem, min(5vw, 10vh), 20rem);
+    font-size: clamp(2.5rem, calc(var(--tv-u, 1vw) * 5), 20rem);
   }
 
   .tv-token-card {
-    font-size: clamp(4rem, min(9vw, 14vh), 40rem);
+    font-size: clamp(4rem, calc(var(--tv-u, 1vw) * 8), 40rem);
   }
 
   .tv-token-card-large {
-    font-size: clamp(5rem, min(13vw, 22vh), 60rem);
+    font-size: clamp(5rem, calc(var(--tv-u, 1vw) * 12), 60rem);
   }
 
   .tv-token-next {
-    font-size: clamp(2rem, min(3.5vw, 6vh), 16rem);
+    font-size: clamp(2rem, calc(var(--tv-u, 1vw) * 3.4), 16rem);
   }
 
   .tv-token-next-small {
-    font-size: clamp(1.5rem, min(2.4vw, 4vh), 10rem);
+    font-size: clamp(1.5rem, calc(var(--tv-u, 1vw) * 2.3), 10rem);
+  }
+}
+
+/* 5-card TV pages need a narrower grid on 4:3/5:4 panels, while 16:9 and
+   ultrawide keep the 3+2 layout. The shell supplies --tv-u from measured
+   pixels, so these rules do not depend on the browser's vh/dvh reporting. */
+.tv-grid-5 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tv-grid {
+  width: 100%;
+  max-width: min(96%, calc(var(--tv-vh, 1vh) * 210));
+  margin-inline: auto;
+}
+
+.tv-card-5 {
+  grid-column: span 1 / span 1;
+}
+
+@media (min-aspect-ratio: 3 / 2) {
+  .tv-grid-5 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .tv-card-5 {
+    grid-column: span 2 / span 2;
+  }
+
+  .tv-card-5-start {
+    grid-column: 2 / span 2;
+  }
+}
+
+@media (max-aspect-ratio: 4 / 3) {
+  .tv-token-card {
+    font-size: clamp(3rem, calc(var(--tv-u, 1vw) * 7.5), 30rem);
+  }
+
+  .tv-token-card-large {
+    font-size: clamp(3.5rem, calc(var(--tv-u, 1vw) * 10.5), 40rem);
   }
 }
 
@@ -162,14 +203,14 @@ body {
 /* The TV header controls (language, sound) are shared with the phone UI, where
    their normal sizes are right. Scale only the copies inside the display. */
 .tv-controls button {
-  min-height: clamp(2.5rem, 4vh, 4rem);
-  padding-inline: clamp(0.75rem, 1vw, 1.5rem);
-  font-size: clamp(0.9rem, 1.1vw, 1.75rem);
+  min-height: clamp(2.5rem, calc(var(--tv-vh, 1vh) * 4), 4rem);
+  padding-inline: clamp(0.75rem, calc(var(--tv-u, 1vw) * 1), 1.5rem);
+  font-size: clamp(0.9rem, calc(var(--tv-u, 1vw) * 1.1), 1.75rem);
 }
 
 .tv-controls button svg {
-  width: clamp(1rem, 1.4vw, 2rem);
-  height: clamp(1rem, 1.4vw, 2rem);
+  width: clamp(1rem, calc(var(--tv-u, 1vw) * 1.4), 2rem);
+  height: clamp(1rem, calc(var(--tv-u, 1vw) * 1.4), 2rem);
 }
 
 /* A 720p waiting-room TV has much less vertical room than a 1080p one. Keep the

@@ -55,36 +55,35 @@ export function displaySignature<T>(items: readonly T[], getId: (item: T) => str
 /**
  * Grid classes for one page.
  *
- * Five gets a six-column track so three cards sit on top and the final two can
- * be centred beneath them. Everything else uses at most three columns.
+ * Five uses a CSS class whose column count changes with the measured aspect
+ * ratio: six columns (3+2) on 16:9 and wider, two columns on 4:3/5:4. The other
+ * counts use at most three columns.
  */
 export function gridClassFor(count: number): string {
   switch (count) {
     case 1:
-      return 'max-w-[min(90vw,300rem)] grid-cols-1'
+      return 'grid-cols-1'
     case 2:
-      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2'
+      return 'grid-cols-1 sm:grid-cols-2'
     case 3:
-      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-3'
+      return 'grid-cols-1 sm:grid-cols-3'
     case 4:
-      return 'max-w-[min(96vw,400rem)] grid-cols-2'
+      return 'grid-cols-2'
     case 5:
-      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-6'
+      return 'tv-grid-5'
     default:
-      return 'max-w-[min(96vw,400rem)] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+      return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
   }
 }
 
 /**
  * Extra class for a card inside a five-card page.
  *
- * The fourth card starts in the second column of the six-column track, leaving
- * the two bottom cards centred under the top row.
+ * On 16:9 the fourth card starts in the second column of the six-column track,
+ * leaving the two bottom cards centred under the top row. On 4:3 every card is
+ * a single column in a two-column grid.
  */
 export function cardClassFor(index: number, count: number): string {
   if (count !== 5) return ''
-
-  if (index < 3) return 'lg:col-span-2'
-  if (index === 3) return 'lg:col-span-2 lg:col-start-2'
-  return 'lg:col-span-2'
+  return index === 3 ? 'tv-card-5 tv-card-5-start' : 'tv-card-5'
 }

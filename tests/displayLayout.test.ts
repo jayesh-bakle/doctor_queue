@@ -75,10 +75,10 @@ describe('shared TV pagination', () => {
     expect(displaySignature(reordered, getId)).not.toBe(displaySignature(first, getId))
   })
 
-  it('centres the two bottom cards of a five-card page', () => {
-    expect(gridClassFor(5)).toContain('lg:grid-cols-6')
-    expect(cardClassFor(3, 5)).toContain('lg:col-start-2')
-    expect(cardClassFor(0, 5)).not.toContain('col-start')
+  it('centres the two bottom cards of a five-card page on wide screens', () => {
+    expect(gridClassFor(5)).toBe('tv-grid-5')
+    expect(cardClassFor(3, 5)).toContain('tv-card-5-start')
+    expect(cardClassFor(0, 5)).not.toContain('tv-card-5-start')
     expect(cardClassFor(3, 4)).toBe('')
   })
 })

@@ -23,23 +23,23 @@ export function NowCallingBanner({ call }: { call: LatestCall | null }) {
 
   return (
     <section
-      className="display-banner mx-[clamp(1rem,2vw,3rem)] mt-[clamp(0.75rem,1.2vw,1.5rem)] flex max-w-full min-h-[clamp(5rem,10vh,12rem)] items-center gap-[clamp(1rem,2vw,3rem)] rounded-[clamp(1rem,1.5vw,2.5rem)] border border-brand-500/70 bg-brand-800 px-[clamp(1rem,2vw,3rem)] py-[clamp(0.75rem,1.2vw,2rem)] text-white"
+      className="display-banner mx-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)] mt-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),1.5rem)] flex max-w-full min-h-[clamp(5rem,calc(var(--tv-vh,1vh)*10),12rem)] items-center gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)] rounded-[clamp(1rem,calc(var(--tv-u,1vw)*1.5),2.5rem)] border border-brand-500/70 bg-brand-800 px-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)] py-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)] text-white"
       style={{ backgroundColor: '#115e59', borderColor: '#14b8a6' }}
       role="status"
     >
-      <div className="shrink-0 border-r border-brand-600 pr-[clamp(1rem,2vw,3rem)]">
-        <p className="text-[clamp(0.75rem,1vw,1.5rem)] font-bold tracking-wider text-brand-200 uppercase">
+      <div className="shrink-0 border-r border-brand-600 pr-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)]">
+        <p className="text-[clamp(0.75rem,calc(var(--tv-u,1vw)*1),1.5rem)] font-bold tracking-wider text-brand-200 uppercase">
           {t.nowCalling}
         </p>
         <TokenDisplay token={call.token} size="tvBanner" tone="light" />
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="line-clamp-2 break-words text-[clamp(1.5rem,2.6vw,5rem)] leading-tight font-extrabold">
+        <p className="line-clamp-2 break-words text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.6),5rem)] leading-tight font-extrabold">
           {call.doctorName}
         </p>
         {meta ? (
-          <p className="mt-[clamp(0.25rem,0.4vw,0.75rem)] break-words text-[clamp(1rem,1.4vw,2.5rem)] text-brand-200">
+          <p className="mt-[clamp(0.25rem,calc(var(--tv-u,1vw)*0.4),0.75rem)] break-words text-[clamp(1rem,calc(var(--tv-u,1vw)*1.4),2.5rem)] text-brand-200">
             {meta}
           </p>
         ) : null}

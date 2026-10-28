@@ -40,26 +40,28 @@ export function DoctorCard({
   return (
     <section
       className={cn(
-        'flex min-h-0 max-w-full flex-col items-center justify-center rounded-[clamp(1rem,1.6vw,2.5rem)] text-center transition-colors duration-300',
+        'flex min-h-0 max-w-full flex-col items-center justify-center rounded-[clamp(1rem,calc(var(--tv-u,1vw)*1.6),2.5rem)] text-center transition-colors duration-300',
         dense
-          ? 'px-[clamp(0.75rem,1.2vw,2rem)] py-[clamp(0.75rem,1.2vw,2rem)]'
-          : 'px-[clamp(1rem,1.8vw,3rem)] py-[clamp(1rem,1.8vw,3rem)]',
+          ? 'px-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)] py-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)]'
+          : 'px-[clamp(1rem,calc(var(--tv-u,1vw)*1.8),3rem)] py-[clamp(1rem,calc(var(--tv-u,1vw)*1.8),3rem)]',
         highlighted
-          ? 'bg-slate-700 ring-[clamp(2px,0.35vw,8px)] ring-brand-400'
+          ? 'bg-slate-700 ring-[clamp(2px,calc(var(--tv-u,1vw)*0.35),8px)] ring-brand-400'
           : 'bg-slate-800',
         className,
       )}
       style={{
         backgroundColor: highlighted ? '#334155' : '#1e293b',
-        boxShadow: highlighted ? '0 0 0 0.35vw #2dd4bf' : undefined,
+        boxShadow: highlighted
+          ? '0 0 0 calc(var(--tv-u, 1vw) * 0.35) #2dd4bf'
+          : undefined,
       }}
     >
       <p
         className={cn(
           'line-clamp-2 w-full break-words font-extrabold leading-tight text-brand-300',
           dense
-            ? 'text-[clamp(1rem,1.6vw,2.5rem)]'
-            : 'text-[clamp(1.5rem,2.4vw,4rem)]',
+            ? 'text-[clamp(1rem,calc(var(--tv-u,1vw)*1.6),2.5rem)]'
+            : 'text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.4),4rem)]',
         )}
       >
         {doctor.doctor_name}
@@ -68,8 +70,8 @@ export function DoctorCard({
         className={cn(
           'line-clamp-2 w-full break-words text-slate-300',
           dense
-            ? 'text-[clamp(0.75rem,1vw,1.5rem)]'
-            : 'text-[clamp(0.9rem,1.2vw,1.75rem)]',
+            ? 'text-[clamp(0.75rem,calc(var(--tv-u,1vw)*1),1.5rem)]'
+            : 'text-[clamp(0.9rem,calc(var(--tv-u,1vw)*1.2),1.75rem)]',
         )}
       >
         {meta}
@@ -78,15 +80,17 @@ export function DoctorCard({
       <div
         className={cn(
           'flex w-full flex-col items-center',
-          dense ? 'mt-[clamp(0.5rem,0.8vw,1.25rem)]' : 'mt-[clamp(0.75rem,1.2vw,2rem)]',
+          dense
+            ? 'mt-[clamp(0.5rem,calc(var(--tv-u,1vw)*0.8),1.25rem)]'
+            : 'mt-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)]',
         )}
       >
         <p
           className={cn(
             'font-bold tracking-wide text-slate-400 uppercase',
             dense
-              ? 'mb-[clamp(0.25rem,0.4vw,0.75rem)] text-[clamp(0.65rem,0.85vw,1.25rem)]'
-              : 'mb-[clamp(0.5rem,0.8vw,1rem)] text-[clamp(0.8rem,1.1vw,1.75rem)]',
+              ? 'mb-[clamp(0.25rem,calc(var(--tv-u,1vw)*0.4),0.75rem)] text-[clamp(0.65rem,calc(var(--tv-u,1vw)*0.85),1.25rem)]'
+              : 'mb-[clamp(0.5rem,calc(var(--tv-u,1vw)*0.8),1rem)] text-[clamp(0.8rem,calc(var(--tv-u,1vw)*1.1),1.75rem)]',
           )}
         >
           {t.currentLabel}
@@ -102,7 +106,9 @@ export function DoctorCard({
       <div
         className={cn(
           'h-px w-full bg-slate-700',
-          dense ? 'mt-[clamp(0.5rem,1vw,1.25rem)]' : 'mt-[clamp(0.75rem,1.5vw,2rem)]',
+          dense
+            ? 'mt-[clamp(0.5rem,calc(var(--tv-u,1vw)*1),1.25rem)]'
+            : 'mt-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.5),2rem)]',
         )}
       />
 
@@ -110,8 +116,8 @@ export function DoctorCard({
         className={cn(
           'flex w-full items-center justify-center',
           dense
-            ? 'mt-[clamp(0.375rem,0.6vw,1rem)] gap-[clamp(1rem,2vw,3rem)]'
-            : 'mt-[clamp(0.75rem,1.2vw,1.5rem)] gap-[clamp(1.5rem,3vw,5rem)]',
+            ? 'mt-[clamp(0.375rem,calc(var(--tv-u,1vw)*0.6),1rem)] gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)]'
+            : 'mt-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),1.5rem)] gap-[clamp(1.5rem,calc(var(--tv-u,1vw)*3),5rem)]',
         )}
       >
         <div className="flex flex-col items-center">
@@ -119,8 +125,8 @@ export function DoctorCard({
             className={cn(
               'font-bold tracking-wide text-slate-400 uppercase',
               dense
-                ? 'text-[clamp(0.6rem,0.8vw,1.1rem)]'
-                : 'text-[clamp(0.8rem,1.1vw,1.75rem)]',
+                ? 'text-[clamp(0.6rem,calc(var(--tv-u,1vw)*0.8),1.1rem)]'
+                : 'text-[clamp(0.8rem,calc(var(--tv-u,1vw)*1.1),1.75rem)]',
             )}
           >
             {t.nextLabel}
@@ -141,18 +147,18 @@ export function DoctorCard({
             className={cn(
               'font-bold tracking-wide text-slate-400 uppercase',
               dense
-                ? 'text-[clamp(0.6rem,0.8vw,1.1rem)]'
-                : 'text-[clamp(0.8rem,1.1vw,1.75rem)]',
+                ? 'text-[clamp(0.6rem,calc(var(--tv-u,1vw)*0.8),1.1rem)]'
+                : 'text-[clamp(0.8rem,calc(var(--tv-u,1vw)*1.1),1.75rem)]',
             )}
           >
             {t.waitingLabel}
           </p>
           <p
             className={cn(
-              'token-digits mt-[clamp(0.125rem,0.2vw,0.5rem)] font-extrabold text-white',
+              'token-digits mt-[clamp(0.125rem,calc(var(--tv-u,1vw)*0.2),0.5rem)] font-extrabold text-white',
               dense
-                ? 'text-[clamp(1.75rem,2.8vw,4rem)]'
-                : 'text-[clamp(2.5rem,4vw,6rem)]',
+                ? 'text-[clamp(1.75rem,calc(var(--tv-u,1vw)*2.8),4rem)]'
+                : 'text-[clamp(2.5rem,calc(var(--tv-u,1vw)*4),6rem)]',
             )}
           >
             {messages.count(doctor.waiting_count ?? 0)}

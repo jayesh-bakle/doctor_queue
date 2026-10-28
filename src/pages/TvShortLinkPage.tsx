@@ -24,7 +24,7 @@ export function TvShortLinkPage() {
     return (
       <DisplayLayout>
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-[clamp(1.5rem,2.5vw,4rem)] text-slate-400">{t.loading}</p>
+          <p className="text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)] text-slate-400">{t.loading}</p>
         </div>
       </DisplayLayout>
     )
@@ -33,11 +33,11 @@ export function TvShortLinkPage() {
   if (!hospital) {
     return (
       <DisplayLayout>
-        <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,2vw,2.5rem)] px-[clamp(2rem,4vw,6rem)] text-center">
-          <p className="max-w-full break-words text-[clamp(2rem,4vw,6rem)] font-bold">
+        <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),2.5rem)] px-[clamp(2rem,calc(var(--tv-u,1vw)*4),6rem)] text-center">
+          <p className="max-w-full break-words text-[clamp(2rem,calc(var(--tv-u,1vw)*4),6rem)] font-bold">
             {t.unavailable}
           </p>
-          <p className="max-w-full break-words text-[clamp(1.25rem,2vw,3.5rem)] text-slate-400">
+          <p className="max-w-full break-words text-[clamp(1.25rem,calc(var(--tv-u,1vw)*2),3.5rem)] text-slate-400">
             {t.checkUrl}
           </p>
         </div>

@@ -187,7 +187,7 @@ export function DisplayPage() {
     return (
       <DisplayLayout>
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-[clamp(1.5rem,2.5vw,4rem)] text-slate-400">{t.loading}</p>
+          <p className="text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)] text-slate-400">{t.loading}</p>
         </div>
       </DisplayLayout>
     )
@@ -196,15 +196,15 @@ export function DisplayPage() {
   if (notFound || error || !hospital) {
     return (
       <DisplayLayout>
-        <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,2vw,2.5rem)] px-[clamp(2rem,4vw,6rem)] text-center">
-          <p className="max-w-full break-words text-[clamp(2rem,4vw,6rem)] font-bold">
+        <div className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),2.5rem)] px-[clamp(2rem,calc(var(--tv-u,1vw)*4),6rem)] text-center">
+          <p className="max-w-full break-words text-[clamp(2rem,calc(var(--tv-u,1vw)*4),6rem)] font-bold">
             {error ?? t.unavailable}
           </p>
-          <p className="max-w-full break-words text-[clamp(1.25rem,2vw,3.5rem)] text-slate-400">
+          <p className="max-w-full break-words text-[clamp(1.25rem,calc(var(--tv-u,1vw)*2),3.5rem)] text-slate-400">
             {t.checkUrl}
           </p>
           {hospitalId ? (
-            <p className="text-[clamp(0.875rem,1.2vw,2rem)] text-slate-500">
+            <p className="text-[clamp(0.875rem,calc(var(--tv-u,1vw)*1.2),2rem)] text-slate-500">
               {displayUrl(hospitalId)}
             </p>
           ) : null}
@@ -219,24 +219,24 @@ export function DisplayPage() {
 
   return (
     <DisplayLayout>
-      <header className="display-header flex shrink-0 items-center justify-between gap-[clamp(1rem,2vw,3rem)] border-b border-slate-700 px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)]">
+      <header className="display-header flex shrink-0 items-center justify-between gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)] border-b border-slate-700 px-[clamp(1rem,calc(var(--tv-u,1vw)*2),4rem)] py-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)]">
         <div className="flex min-w-0 flex-col">
-          <p className="line-clamp-2 break-words text-[clamp(1.5rem,2.4vw,5rem)] leading-tight font-extrabold tracking-wide text-white">
+          <p className="line-clamp-2 break-words text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.4),5rem)] leading-tight font-extrabold tracking-wide text-white">
             {hospital.hospital_name}
           </p>
-          <p className="display-date mt-[clamp(0.125rem,0.2vw,0.5rem)] text-[clamp(0.875rem,1.1vw,2.5rem)] text-slate-400">
+          <p className="display-date mt-[clamp(0.125rem,calc(var(--tv-u,1vw)*0.2),0.5rem)] text-[clamp(0.875rem,calc(var(--tv-u,1vw)*1.1),2.5rem)] text-slate-400">
             {messages.dateWithWeekday(now, timezone)}
           </p>
         </div>
 
-        <div className="tv-controls flex shrink-0 items-center gap-[clamp(0.75rem,1.5vw,2.5rem)]">
+        <div className="tv-controls flex shrink-0 items-center gap-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.5),2.5rem)]">
           {rotating && !allIdle ? (
-            <p className="token-digits rounded-full bg-slate-800 px-[clamp(0.75rem,1vw,1.5rem)] py-[clamp(0.25rem,0.4vw,0.75rem)] text-[clamp(1rem,1.5vw,2.5rem)] font-bold text-slate-300">
+            <p className="token-digits rounded-full bg-slate-800 px-[clamp(0.75rem,calc(var(--tv-u,1vw)*1),1.5rem)] py-[clamp(0.25rem,calc(var(--tv-u,1vw)*0.4),0.75rem)] text-[clamp(1rem,calc(var(--tv-u,1vw)*1.5),2.5rem)] font-bold text-slate-300">
               {messages.count(pageIndex + 1)} / {messages.count(pageCount)}
             </p>
           ) : null}
-          <p className="token-digits flex items-center gap-[clamp(0.5rem,0.8vw,1rem)] text-[clamp(1.25rem,1.9vw,4rem)] font-bold text-slate-300">
-            <Clock className="size-[clamp(1.25rem,1.9vw,4rem)]" aria-hidden="true" />
+          <p className="token-digits flex items-center gap-[clamp(0.5rem,calc(var(--tv-u,1vw)*0.8),1rem)] text-[clamp(1.25rem,calc(var(--tv-u,1vw)*1.9),4rem)] font-bold text-slate-300">
+            <Clock className="size-[clamp(1.25rem,calc(var(--tv-u,1vw)*1.9),4rem)]" aria-hidden="true" />
             {messages.time(now, timezone)}
           </p>
           <LanguageSwitcher tone="dark" className="no-print" />
@@ -246,13 +246,13 @@ export function DisplayPage() {
 
       <NowCallingBanner call={latestCall} />
 
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)]">
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-[clamp(1rem,calc(var(--tv-u,1vw)*2),4rem)] py-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)]">
         {allIdle ? (
-          <div className="flex max-w-full flex-col items-center gap-[clamp(1rem,2vw,2.5rem)] px-[clamp(1rem,2vw,3rem)] text-center">
-            <p className="max-w-full break-words text-[clamp(2rem,4vw,6rem)] font-bold text-slate-300">
+          <div className="flex max-w-full flex-col items-center gap-[clamp(1rem,calc(var(--tv-u,1vw)*2),2.5rem)] px-[clamp(1rem,calc(var(--tv-u,1vw)*2),3rem)] text-center">
+            <p className="max-w-full break-words text-[clamp(2rem,calc(var(--tv-u,1vw)*4),6rem)] font-bold text-slate-300">
               {t.emptyQueue}
             </p>
-            <p className="max-w-full break-words text-[clamp(1.25rem,2vw,3.5rem)] text-slate-500">
+            <p className="max-w-full break-words text-[clamp(1.25rem,calc(var(--tv-u,1vw)*2),3.5rem)] text-slate-500">
               {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
             </p>
           </div>
@@ -263,10 +263,10 @@ export function DisplayPage() {
           >
             <div
               className={cn(
-                'grid w-full content-center',
+                'tv-grid grid content-center',
                 dense
-                  ? 'gap-[clamp(0.5rem,0.8vw,1.25rem)]'
-                  : 'gap-[clamp(0.75rem,1.5vw,2rem)]',
+                  ? 'gap-[clamp(0.5rem,calc(var(--tv-u,1vw)*0.8),1.25rem)]'
+                  : 'gap-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.5),2rem)]',
                 gridClassFor(pageItems.length),
               )}
             >
@@ -286,8 +286,8 @@ export function DisplayPage() {
         )}
       </main>
 
-      <footer className="display-footer shrink-0 border-t border-slate-700 px-[clamp(1rem,2vw,4rem)] py-[clamp(0.75rem,1.2vw,2rem)] text-center">
-        <p className="line-clamp-2 break-words text-[clamp(1rem,1.6vw,3rem)] leading-snug font-semibold text-slate-300">
+      <footer className="display-footer shrink-0 border-t border-slate-700 px-[clamp(1rem,calc(var(--tv-u,1vw)*2),4rem)] py-[clamp(0.75rem,calc(var(--tv-u,1vw)*1.2),2rem)] text-center">
+        <p className="line-clamp-2 break-words text-[clamp(1rem,calc(var(--tv-u,1vw)*1.6),3rem)] leading-snug font-semibold text-slate-300">
           {localizedValue(hospital.display_message_i18n, language, hospital.display_message)}
         </p>
       </footer>
