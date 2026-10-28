@@ -33,7 +33,8 @@ export function TvDebugOverlay({ metrics }: { metrics: TvViewportMetrics }) {
           <span>--tv-vw {format(metrics.width / 100)}px</span>
           <span>--tv-vh {format(metrics.height / 100)}px</span>
           <span>--tv-u {format(metrics.unit)}px</span>
-          <span>aspect {format(metrics.aspectRatio)}</span>
+          <span>shell aspect {format(metrics.aspectRatio)}</span>
+          <span>screen aspect {format(metrics.screenAspectRatio)}</span>
         </div>
 
         <div className="mt-2 space-y-1">

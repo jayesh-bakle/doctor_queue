@@ -114,16 +114,36 @@ body {
   }
 }
 
-/* 5-card TV pages need a narrower grid on 4:3/5:4 panels, while 16:9 and
-   ultrawide keep the 3+2 layout. The shell supplies --tv-u from measured
-   pixels, so these rules do not depend on the browser's vh/dvh reporting. */
+/* TV grids are selected from the measured screen aspect ratio rather than
+   viewport media queries. Some TV browsers report a narrow or half-height CSS
+   viewport even on a 16:9 panel, which made every card stack vertically. */
+.tv-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.tv-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tv-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tv-grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .tv-grid-5 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.tv-grid-many {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .tv-grid {
   width: 100%;
-  max-width: min(96%, calc(var(--tv-vh, 1vh) * 210));
+  max-width: 96%;
   margin-inline: auto;
 }
 
@@ -131,28 +151,40 @@ body {
   grid-column: span 1 / span 1;
 }
 
-@media (min-aspect-ratio: 3 / 2) {
-  .tv-grid-5 {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .tv-card-5 {
-    grid-column: span 2 / span 2;
-  }
-
-  .tv-card-5-start {
-    grid-column: 2 / span 2;
-  }
+[data-tv-wide='true'] .tv-grid-5 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
-@media (max-aspect-ratio: 4 / 3) {
-  .tv-token-card {
-    font-size: clamp(3rem, calc(var(--tv-u, 1vw) * 7.5), 30rem);
-  }
+[data-tv-wide='true'] .tv-card-5 {
+  grid-column: span 2 / span 2;
+}
 
-  .tv-token-card-large {
-    font-size: clamp(3.5rem, calc(var(--tv-u, 1vw) * 10.5), 40rem);
-  }
+[data-tv-wide='true'] .tv-card-5-start {
+  grid-column: 2 / span 2;
+}
+
+[data-tv-portrait='true'] .tv-grid-2,
+[data-tv-portrait='true'] .tv-grid-3,
+[data-tv-portrait='true'] .tv-grid-4,
+[data-tv-portrait='true'] .tv-grid-5,
+[data-tv-portrait='true'] .tv-grid-many {
+  grid-template-columns: 1fr;
+}
+
+[data-tv-portrait='true'] .tv-card-5 {
+  grid-column: span 1 / span 1;
+}
+
+[data-tv-ultrawide='true'] .tv-grid {
+  max-width: min(96%, calc(var(--tv-screen-vh, 1vh) * 210));
+}
+
+[data-tv-wide='false'] .tv-token-card {
+  font-size: clamp(3rem, calc(var(--tv-u, 1vw) * 7.5), 30rem);
+}
+
+[data-tv-wide='false'] .tv-token-card-large {
+  font-size: clamp(3.5rem, calc(var(--tv-u, 1vw) * 10.5), 40rem);
 }
 
 /* The one animation that earns its place: a brief pulse when the token on the

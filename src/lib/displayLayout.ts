@@ -62,17 +62,17 @@ export function displaySignature<T>(items: readonly T[], getId: (item: T) => str
 export function gridClassFor(count: number): string {
   switch (count) {
     case 1:
-      return 'grid-cols-1'
+      return 'tv-grid-1'
     case 2:
-      return 'grid-cols-1 sm:grid-cols-2'
+      return 'tv-grid-2'
     case 3:
-      return 'grid-cols-1 sm:grid-cols-3'
+      return 'tv-grid-3'
     case 4:
-      return 'grid-cols-2'
+      return 'tv-grid-4'
     case 5:
       return 'tv-grid-5'
     default:
-      return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+      return 'tv-grid-many'
   }
 }
 
