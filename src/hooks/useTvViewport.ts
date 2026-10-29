@@ -115,7 +115,9 @@ export function useTvViewport<T extends HTMLElement>(
       // For TV, use a more stable unit calculation
       // Base unit on the smaller dimension to ensure readability
       const baseUnit = Math.min(width, height * (16/9)) / 100
-      const unit = isTv ? Math.max(baseUnit, 12) : baseUnit // Minimum 12px unit on TV (increased from 8)
+      // SAFEGUARD: never allow unit to be 0 or negative
+      const safeBaseUnit = Math.max(baseUnit, 1)
+      const unit = isTv ? Math.max(safeBaseUnit, 12) : Math.max(safeBaseUnit, 1) // Minimum 12px on TV, 1px on desktop
       
       const aspectRatio = height > 0 ? width / height : 0
       const screenAspectRatio = screenWidth > 0 && screenHeight > 0 

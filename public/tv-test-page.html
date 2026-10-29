@@ -428,19 +428,34 @@
     
     // CSS Custom Properties
     function updateCssProps() {
-      const style = getComputedStyle(document.documentElement);
+      // Check both documentElement and the TV shell element
+      const htmlStyle = getComputedStyle(document.documentElement);
+      const shell = document.querySelector('[data-tv-is-tv]') || document.documentElement;
+      const shellStyle = getComputedStyle(shell);
+      
       const props = [
         '--tv-u', '--tv-vw', '--tv-vh', '--tv-screen-vh',
         '--color-brand-500', '--color-brand-600', '--color-brand-700'
       ];
       
       const grid = document.getElementById('css-props-grid');
-      grid.innerHTML = props.map(prop => `
+      grid.innerHTML = props.map(prop => {
+        // Try shell first, then html
+        let value = shellStyle.getPropertyValue(prop).trim();
+        if (!value || value === '0px') {
+          value = htmlStyle.getPropertyValue(prop).trim();
+        }
+        if (!value || value === '0px') {
+          // Check inline styles as last resort
+          value = shell.style.getPropertyValue(prop).trim() || html.style.getPropertyValue(prop).trim();
+        }
+        return `
         <div class="metric-card">
           <div class="metric-label">${prop}</div>
-          <div class="metric-value" style="font-size: 1rem; font-family: monospace;">${style.getPropertyValue(prop).trim() || '(not set)'}</div>
+          <div class="metric-value ${(value === '(not set)' || value === '0px' || !value) ? 'error' : ''}" style="font-size: 1rem; font-family: monospace;">${value || '(not set)'}</div>
         </div>
-      `).join('');
+        `;
+      }).join('');
     }
     
     // Doctor Grid Demo

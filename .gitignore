@@ -48,3 +48,6 @@ supabase/functions/.env.local
 
 # Test output
 coverage/
+
+# AI Assistant
+.claude/

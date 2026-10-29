@@ -70,12 +70,30 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
     html.dataset.tvInitialized = 'true'
 
     // Force initial viewport calculation
-    if (shellRef.current) {
-      shellRef.current.style.setProperty('--tv-vw', '1vw')
-      shellRef.current.style.setProperty('--tv-vh', '1vh')
-      shellRef.current.style.setProperty('--tv-u', '8px')
-      shellRef.current.style.setProperty('--tv-screen-vh', '1vh')
+    // Use 12px minimum for TV readability
+    const initialTvU = '12px'
+    const shell = shellRef.current
+    if (shell) {
+      shell.style.setProperty('--tv-vw', '1vw')
+      shell.style.setProperty('--tv-vh', '1vh')
+      shell.style.setProperty('--tv-u', initialTvU)
+      shell.style.setProperty('--tv-screen-vh', '1vh')
+      shell.dataset.tvIsTv = 'true'
+    } else {
+      // If shell ref not ready yet, set on documentElement as fallback
+      const html = document.documentElement
+      html.style.setProperty('--tv-u', initialTvU)
+      html.style.setProperty('--tv-vw', '1vw')
+      html.style.setProperty('--tv-vh', '1vh')
+      html.style.setProperty('--tv-screen-vh', '1vh')
+      html.dataset.tvIsTv = 'true'
     }
+    
+    // Also set initial data attributes for CSS fallbacks
+    const html = document.documentElement
+    html.dataset.tvWide = 'true'
+    html.dataset.tvPortrait = 'false'
+    html.dataset.tvUltrawide = 'false'
 
     return () => {
       html.style.backgroundColor = previous.htmlBackground

@@ -11,6 +11,7 @@ interface DoctorCardProps {
   dense: boolean
   highlighted: boolean
   className?: string
+  simple?: boolean
 }
 
 /**
@@ -26,6 +27,7 @@ export function DoctorCard({
   dense,
   highlighted,
   className,
+  simple = false,
 }: DoctorCardProps) {
   const t = messages.ui.display
   const department = doctor.department
