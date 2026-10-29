@@ -94,23 +94,23 @@ body {
 
 @supports (font-size: clamp(1rem, 1vw, 2rem)) {
   .tv-token-banner {
-    font-size: clamp(2.5rem, calc(var(--tv-u, 1vw) * 5), 20rem);
+    font-size: clamp(4rem, calc(var(--tv-u, 8px) * 7), 32rem);
   }
 
   .tv-token-card {
-    font-size: clamp(4rem, calc(var(--tv-u, 1vw) * 8), 40rem);
+    font-size: clamp(5rem, calc(var(--tv-u, 8px) * 10), 60rem);
   }
 
   .tv-token-card-large {
-    font-size: clamp(5rem, calc(var(--tv-u, 1vw) * 12), 60rem);
+    font-size: clamp(7rem, calc(var(--tv-u, 8px) * 16), 100rem);
   }
 
   .tv-token-next {
-    font-size: clamp(2rem, calc(var(--tv-u, 1vw) * 3.4), 16rem);
+    font-size: clamp(2.5rem, calc(var(--tv-u, 8px) * 4), 24rem);
   }
 
   .tv-token-next-small {
-    font-size: clamp(1.5rem, calc(var(--tv-u, 1vw) * 2.3), 10rem);
+    font-size: clamp(2rem, calc(var(--tv-u, 8px) * 3), 16rem);
   }
 }
 
@@ -180,11 +180,11 @@ body {
 }
 
 [data-tv-wide='false'] .tv-token-card {
-  font-size: clamp(3rem, calc(var(--tv-u, 1vw) * 7.5), 30rem);
+  font-size: clamp(4.5rem, calc(var(--tv-u, 8px) * 9), 48rem);
 }
 
 [data-tv-wide='false'] .tv-token-card-large {
-  font-size: clamp(3.5rem, calc(var(--tv-u, 1vw) * 10.5), 40rem);
+  font-size: clamp(6rem, calc(var(--tv-u, 8px) * 14), 80rem);
 }
 
 /* The one animation that earns its place: a brief pulse when the token on the
@@ -354,11 +354,11 @@ body {
 }
 
 [data-tv-wide='false'] .tv-token-card {
-  font-size: clamp(3.5rem, calc(var(--tv-u, 8px) * 8), 36rem);
+  font-size: clamp(4.5rem, calc(var(--tv-u, 8px) * 9), 48rem);
 }
 
 [data-tv-wide='false'] .tv-token-card-large {
-  font-size: clamp(4rem, calc(var(--tv-u, 8px) * 11), 48rem);
+  font-size: clamp(6rem, calc(var(--tv-u, 8px) * 14), 80rem);
 }
 
 /* More robust grid system */
@@ -473,9 +473,9 @@ body {
 
 /* Fallback for browsers without clamp() */
 @supports not (font-size: clamp(1rem, 1vw, 2rem)) {
-  .tv-token-banner { font-size: 4rem; }
-  .tv-token-card { font-size: 5rem; }
-  .tv-token-card-large { font-size: 6rem; }
-  .tv-token-next { font-size: 2.5rem; }
-  .tv-token-next-small { font-size: 2rem; }
+  .tv-token-banner { font-size: 5rem; }
+  .tv-token-card { font-size: 6rem; }
+  .tv-token-card-large { font-size: 8rem; }
+  .tv-token-next { font-size: 3rem; }
+  .tv-token-next-small { font-size: 2.5rem; }
 }
