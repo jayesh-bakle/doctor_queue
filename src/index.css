@@ -94,23 +94,23 @@ body {
 
 @supports (font-size: clamp(1rem, 1vw, 2rem)) {
   .tv-token-banner {
-    font-size: clamp(4rem, calc(var(--tv-u, 8px) * 7), 32rem);
+    font-size: clamp(4rem, calc(var(--tv-u, 12px) * 7), 32rem);
   }
 
   .tv-token-card {
-    font-size: clamp(5rem, calc(var(--tv-u, 8px) * 10), 60rem);
+    font-size: clamp(5rem, calc(var(--tv-u, 12px) * 10), 60rem);
   }
 
   .tv-token-card-large {
-    font-size: clamp(7rem, calc(var(--tv-u, 8px) * 16), 100rem);
+    font-size: clamp(7rem, calc(var(--tv-u, 12px) * 16), 100rem);
   }
 
   .tv-token-next {
-    font-size: clamp(2.5rem, calc(var(--tv-u, 8px) * 4), 24rem);
+    font-size: clamp(2.5rem, calc(var(--tv-u, 12px) * 4), 24rem);
   }
 
   .tv-token-next-small {
-    font-size: clamp(2rem, calc(var(--tv-u, 8px) * 3), 16rem);
+    font-size: clamp(2rem, calc(var(--tv-u, 12px) * 3), 16rem);
   }
 }
 
@@ -180,11 +180,11 @@ body {
 }
 
 [data-tv-wide='false'] .tv-token-card {
-  font-size: clamp(4.5rem, calc(var(--tv-u, 8px) * 9), 48rem);
+  font-size: clamp(4.5rem, calc(var(--tv-u, 12px) * 9), 48rem);
 }
 
 [data-tv-wide='false'] .tv-token-card-large {
-  font-size: clamp(6rem, calc(var(--tv-u, 8px) * 14), 80rem);
+  font-size: clamp(6rem, calc(var(--tv-u, 12px) * 14), 80rem);
 }
 
 /* The one animation that earns its place: a brief pulse when the token on the
@@ -337,28 +337,28 @@ body {
 
 @supports (font-size: clamp(1rem, 1vw, 2rem)) {
   .tv-token-banner {
-    font-size: clamp(3rem, calc(var(--tv-u, 8px) * 5), 24rem);
+    font-size: clamp(3rem, calc(var(--tv-u, 12px) * 5), 24rem);
   }
   .tv-token-card {
-    font-size: clamp(4rem, calc(var(--tv-u, 8px) * 8), 48rem);
+    font-size: clamp(4rem, calc(var(--tv-u, 12px) * 8), 48rem);
   }
   .tv-token-card-large {
-    font-size: clamp(5rem, calc(var(--tv-u, 8px) * 12), 72rem);
+    font-size: clamp(5rem, calc(var(--tv-u, 12px) * 12), 72rem);
   }
   .tv-token-next {
-    font-size: clamp(2rem, calc(var(--tv-u, 8px) * 3.4), 20rem);
+    font-size: clamp(2rem, calc(var(--tv-u, 12px) * 3.4), 20rem);
   }
   .tv-token-next-small {
-    font-size: clamp(1.5rem, calc(var(--tv-u, 8px) * 2.3), 12rem);
+    font-size: clamp(1.5rem, calc(var(--tv-u, 12px) * 2.3), 12rem);
   }
 }
 
 [data-tv-wide='false'] .tv-token-card {
-  font-size: clamp(4.5rem, calc(var(--tv-u, 8px) * 9), 48rem);
+  font-size: clamp(4.5rem, calc(var(--tv-u, 12px) * 9), 48rem);
 }
 
 [data-tv-wide='false'] .tv-token-card-large {
-  font-size: clamp(6rem, calc(var(--tv-u, 8px) * 14), 80rem);
+  font-size: clamp(6rem, calc(var(--tv-u, 12px) * 14), 80rem);
 }
 
 /* More robust grid system */
@@ -402,7 +402,7 @@ body {
   .display-date { display: none; }
   .display-banner { margin-top: 0.5rem; min-height: 4rem; padding-top: 0.5rem; padding-bottom: 0.5rem; }
   .display-footer { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-  .display-footer p { font-size: clamp(0.875rem, calc(var(--tv-u, 8px) * 1.2), 2rem); }
+  .display-footer p { font-size: clamp(0.875rem, calc(var(--tv-u, 12px) * 1.2), 2rem); }
 }
 
 /* Focus styles for TV remote */
@@ -422,12 +422,12 @@ body {
 /* Safe area insets */
 @supports (padding: max(0px)) {
   .display-header {
-    padding-left: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-left));
-    padding-right: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-right));
+    padding-left: max(clamp(1rem, calc(var(--tv-u, 12px) * 2), 4rem), env(safe-area-inset-left));
+    padding-right: max(clamp(1rem, calc(var(--tv-u, 12px) * 2), 4rem), env(safe-area-inset-right));
   }
   .display-footer {
-    padding-left: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-left));
-    padding-right: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-right));
+    padding-left: max(clamp(1rem, calc(var(--tv-u, 12px) * 2), 4rem), env(safe-area-inset-left));
+    padding-right: max(clamp(1rem, calc(var(--tv-u, 12px) * 2), 4rem), env(safe-area-inset-right));
   }
   .tv-grid {
     padding-left: max(0px, env(safe-area-inset-left));
@@ -601,23 +601,23 @@ body {
 [data-tv-is-tv="true"] {
   /* Minimum token sizes */
   .tv-token-banner {
-    font-size: max(4rem, calc(var(--tv-u, 8px) * 7));
+    font-size: max(4rem, calc(var(--tv-u, 12px) * 7));
   }
   
   .tv-token-card {
-    font-size: max(5rem, calc(var(--tv-u, 8px) * 10));
+    font-size: max(5rem, calc(var(--tv-u, 12px) * 10));
   }
   
   .tv-token-card-large {
-    font-size: max(7rem, calc(var(--tv-u, 8px) * 16));
+    font-size: max(7rem, calc(var(--tv-u, 12px) * 16));
   }
   
   .tv-token-next {
-    font-size: max(2.5rem, calc(var(--tv-u, 8px) * 4));
+    font-size: max(2.5rem, calc(var(--tv-u, 12px) * 4));
   }
   
   .tv-token-next-small {
-    font-size: max(2rem, calc(var(--tv-u, 8px) * 3));
+    font-size: max(2rem, calc(var(--tv-u, 12px) * 3));
   }
   
   /* Ensure grid fills screen */
@@ -642,51 +642,51 @@ body {
 @media (min-width: 768px) {
   /* On any tablet-sized or larger screen, enforce minimum token sizes */
   .tv-token-banner {
-    font-size: max(4rem, 5vw) !important;
+    font-size: max(5rem, 6vw) !important;
   }
   
   .tv-token-card,
   .tv-token-card-large {
-    font-size: max(5rem, 8vw) !important;
+    font-size: max(6rem, 9vw) !important;
   }
   
   .tv-token-next,
   .tv-token-next-small {
-    font-size: max(2.5rem, 3vw) !important;
+    font-size: max(3rem, 3.5vw) !important;
   }
 }
 
 /* On TV-sized screens (1080p+), even larger minimums */
 @media (min-width: 1920px) {
   .tv-token-banner {
-    font-size: max(5rem, 4vw) !important;
+    font-size: max(6rem, 5vw) !important;
   }
   
   .tv-token-card,
   .tv-token-card-large {
-    font-size: max(7rem, 10vw) !important;
+    font-size: max(8rem, 12vw) !important;
   }
   
   .tv-token-next,
   .tv-token-next-small {
-    font-size: max(3rem, 2.5vw) !important;
+    font-size: max(4rem, 3vw) !important;
   }
 }
 
 /* 4K screens */
 @media (min-width: 3840px) {
   .tv-token-banner {
-    font-size: max(6rem, 3.5vw) !important;
+    font-size: max(7rem, 4vw) !important;
   }
   
   .tv-token-card,
   .tv-token-card-large {
-    font-size: max(8rem, 8vw) !important;
+    font-size: max(10rem, 10vw) !important;
   }
   
   .tv-token-next,
   .tv-token-next-small {
-    font-size: max(4rem, 2vw) !important;
+    font-size: max(5rem, 2.5vw) !important;
   }
 }
 
