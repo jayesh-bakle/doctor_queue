@@ -9,6 +9,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "doctor-queue",
   "compatibility_date": "2026-10-12",
+    "observability": {
+    "enabled": true
+  },
   "assets": {
     "directory": "./dist",
     // React Router owns every path: /register, /token/<id>, /display/<id>,
