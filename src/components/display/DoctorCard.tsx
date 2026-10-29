@@ -37,6 +37,84 @@ export function DoctorCard({
     .filter(Boolean)
     .join(' · ')
 
+  // SIMPLE MODE: Only Doctor Name + Current Token (HUGE)
+  if (simple) {
+    return (
+      <section
+        className={cn(
+          'flex min-h-0 max-w-full flex-col items-center justify-center rounded-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)] text-center transition-colors duration-300',
+          dense
+            ? 'px-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)] py-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)]'
+            : 'px-[clamp(2rem,calc(var(--tv-u,1vw)*3.5),6rem)] py-[clamp(2rem,calc(var(--tv-u,1vw)*3.5),6rem)]',
+          highlighted
+            ? 'bg-slate-700 ring-[clamp(3px,calc(var(--tv-u,1vw)*0.5),12px)] ring-brand-400'
+            : 'bg-slate-800',
+          className,
+        )}
+        style={{
+          backgroundColor: highlighted ? '#334155' : '#1e293b',
+          boxShadow: highlighted
+            ? '0 0 0 calc(var(--tv-u, 1vw) * 0.5) #2dd4bf'
+            : undefined,
+        }}
+      >
+        {/* Doctor Name - LARGE */}
+        <p
+          className={cn(
+            'line-clamp-2 w-full break-words font-extrabold leading-tight text-brand-300 mb-[clamp(0.5rem,calc(var(--tv-u,1vw)*1),1.5rem)]',
+            dense
+              ? 'text-[clamp(1.5rem,calc(var(--tv-u,1vw)*2.5),4rem)]'
+              : 'text-[clamp(2rem,calc(var(--tv-u,1vw)*3.5),6rem)]',
+          )}
+        >
+          {doctor.doctor_name}
+        </p>
+        
+        {/* Meta (dept/room) - optional but visible */}
+        {meta && (
+          <p
+            className={cn(
+              'line-clamp-2 w-full break-words text-slate-300 mb-[clamp(1rem,calc(var(--tv-u,1vw)*1.5),2rem)]',
+              dense
+                ? 'text-[clamp(1rem,calc(var(--tv-u,1vw)*1.8),2.5rem)]'
+                : 'text-[clamp(1.25rem,calc(var(--tv-u,1vw)*2.2),3.5rem)]',
+            )}
+          >
+            {meta}
+          </p>
+        )}
+
+        {/* Current Token - MASSIVE */}
+        <div className="flex w-full flex-col items-center">
+          <p
+            className={cn(
+              'font-bold tracking-wide text-slate-400 uppercase mb-[clamp(0.5rem,calc(var(--tv-u,1vw)*0.8),1.5rem)]',
+              dense
+                ? 'text-[clamp(1rem,calc(var(--tv-u,1vw)*1.5),2.5rem)]'
+                : 'text-[clamp(1.25rem,calc(var(--tv-u,1vw)*2),3rem)]',
+            )}
+          >
+            {t.currentLabel}
+          </p>
+          <TokenDisplay
+            token={doctor.current_token}
+            size={dense ? 'tvCardLarge' : 'tvCardLarge'}
+            tone="light"
+            emptyText="—"
+          />
+        </div>
+      </section>
+    )
+  }
+
+  // NORMAL MODE (full details)
+  const department = doctor.department
+    ? localizedValue(doctor.department_i18n, language, doctor.department)
+    : null
+  const meta = [department, doctor.room_number ? messages.roomShort(doctor.room_number) : null]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <section
       className={cn(

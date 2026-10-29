@@ -90,7 +90,6 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
     }
     
     // Also set initial data attributes for CSS fallbacks
-    const html = document.documentElement
     html.dataset.tvWide = 'true'
     html.dataset.tvPortrait = 'false'
     html.dataset.tvUltrawide = 'false'
