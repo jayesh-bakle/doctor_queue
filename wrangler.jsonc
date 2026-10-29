@@ -21,5 +21,11 @@
     // Cloudflare rejects it as an infinite loop, because /index.html matches
     // its own rule.
     "not_found_handling": "single-page-application"
-  }
+  },
+  // TV Display Worker - serves vanilla JS TV display with env var substitution
+  "workers_dev": true,
+  "main": "workers/tv-display.js",
+  "routes": [
+    { "pattern": "doctor-queue.jayeshbakleabd.workers.dev/tv-display*", "script": "tv-display" }
+  ]
 }

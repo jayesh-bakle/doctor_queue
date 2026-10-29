@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="google" content="notranslate">
+  <title>Clinic Queue Display</title>
+  
+  <!-- CSS-First: Works even if JS fails -->
+  <style>
+    :root {
+      --tv-u: 12px;                    /* Minimum 12px base unit */
+      --tv-vw: 1vw;                    /* Viewport width unit */
+      --tv-vh: 1vh;                    /* Viewport height unit */
+      --color-bg: #0f172a;
+      --color-card: #1e293b;
+      --color-text: #ffffff;
+      --color-brand: #14b8a6;
+      --font-main: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari", "Noto Sans Gujarati", sans-serif;
+    }
+    
+    /* TV Browser Fallbacks - Works without JS */
+    @media (min-width: 768px) {
+      :root { --tv-u: max(12px, 1.2vw); }
+      .token { font-size: clamp(5rem, 10vw, 100rem) !important; }
+      .doctor-name { font-size: clamp(2rem, 4vw, 8rem) !important; }
+      .meta { font-size: clamp(1.5rem, 2.5vw, 4rem) !important; }
+    }
+    @media (min-width: 1920px) {
+      :root { --tv-u: max(12px, 1.5vw); }
+      .token { font-size: clamp(8rem, 12vw, 150rem) !important; }
+    }
+    @media (min-width: 3840px) {
+      :root { --tv-u: max(16px, 1.8vw); }
+      .token { font-size: clamp(10rem, 14vw, 200rem) !important; }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { 
+      height: 100vh; width: 100vw; 
+      background: var(--color-bg); color: var(--color-text);
+      font-family: var(--font-main);
+      overflow: hidden; user-select: none;
+    }
+    #app { display: flex; flex-direction: column; height: 100%; }
+    header { padding: calc(var(--tv-u)*4) calc(var(--tv-u)*8); border-bottom: 2px solid #334155; }
+    .clinic-name { font-size: clamp(2.5rem, 5vw, 8rem); font-weight: 900; }
+    main { flex: 1; display: grid; gap: calc(var(--tv-u)*4); padding: calc(var(--tv-u)*4); align-content: center; }
+    .doctor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: calc(var(--tv-u)*4); }
+    .doctor-card { 
+      background: var(--color-card); border: 2px solid #334155; 
+      border-radius: calc(var(--tv-u)*4); padding: calc(var(--tv-u)*4); 
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 40vh;
+    }
+    .doctor-card.highlighted { border-color: var(--color-brand); box-shadow: 0 0 0 calc(var(--tv-u)*2) var(--color-brand); }
+    .doctor-name { font-size: clamp(2rem, 4vw, 8rem); font-weight: 900; color: #5eead4; text-align: center; margin-bottom: calc(var(--tv-u)*2); }
+    .meta { font-size: clamp(1.5rem, 2.5vw, 4rem); color: #94a3b8; text-align: center; margin-bottom: calc(var(--tv-u)*3); }
+    .token-section { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    .token-label { font-size: clamp(1rem, 1.8vw, 2.5rem); color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: calc(var(--tv-u)*1.5); }
+    .token { font-variant-numeric: tabular-nums; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .waiting { font-size: clamp(2rem, 3.5vw, 6rem); font-weight: 900; color: #fff; margin-top: calc(var(--tv-u)*2); }
+    footer { padding: calc(var(--tv-u)*4) calc(var(--tv-u)*8); border-top: 2px solid #334155; text-align: center; }
+    .footer-msg { font-size: clamp(1.5rem, 2.5vw, 4rem); font-weight: 600; color: #94a3b8; }
+    .hidden { display: none !important; }
+    :focus-visible { outline: 4px solid #14b8a6; outline-offset: 4px; }
+  </style>
+  
+  <!-- Preload fonts -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="https://fonts.gstatic.com/s/notosansdevanagari/v25/rP2Hp2ywxg089UriCZOIHTa8.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+    href="https://fonts.gstatic.com/s/notosansgujarati/v20/0QImMXa1D1J0ZNpjAcA.woff2">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1 class="clinic-name" id="clinicName">Loading...</h1>
+    </header>
+    <main>
+      <div class="doctor-grid" id="doctorGrid"></div>
+    </main>
+    <footer>
+      <p class="footer-msg" id="footerMsg"></p>
+    </footer>
+  </div>
+
+  <script type="module">
+    // ============ CONFIG - UPDATE THESE ============
+    const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+    const HOSPITAL_ID = 'e64a0480-ffd8-4a97-95d5-a0af53db810f';
+    
+    // ============ UTILITIES ============
+    const $ = (sel, ctx = document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+    
+    // Marathi digits
+    const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+    const toMarathi = (n) => String(n).padStart(3,'0').split('').map(d => marathiDigits[d]).join('');
+    
+    // ============ VIEWPORT HANDLING ============
+    function updateViewport() {
+      const vv = window.visualViewport;
+      const w = vv?.width ?? window.innerWidth;
+      const h = vv?.height ?? window.innerHeight;
+      const sw = screen.width || w;
+      const sh = screen.height || h;
+      
+      // Use screen if viewport seems wrong (common on TV)
+      const useScreen = sw > w * 1.5 || sh > h * 1.5;
+      const width = useScreen ? sw : w;
+      const height = useScreen ? sh : h;
+      
+      document.documentElement.style.setProperty('--tv-vw', `${width/100}px`);
+      document.documentElement.style.setProperty('--tv-vh', `${height/100}px`);
+      document.documentElement.style.setProperty('--tv-u', `${Math.max(12, Math.min(width, height*16/9)/100)}px`);
+      document.documentElement.style.setProperty('--tv-screen-vh', `${sh/100}px`);
+      
+      // TV detection
+      const ua = navigator.userAgent.toLowerCase();
+      const isTv = ua.includes('tizen') || ua.includes('webos') || 
+                   (ua.includes('android') && (ua.includes('tv')||ua.includes('googletv'))) ||
+                   ua.includes('firetv') || ua.includes('crkey') || 
+                   (sw >= 1280 && sh >= 720);
+      document.documentElement.dataset.tv = isTv ? 'true' : 'false';
+      document.documentElement.dataset.tvOs = ua.includes('tizen') ? 'tizen' : 
+        ua.includes('webos') ? 'webos' : ua.includes('firetv') ? 'firetv' : 'generic';
+    }
+    
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    window.visualViewport?.addEventListener('resize', updateViewport);
+    
+    // ============ SUPABASE REALTIME ============
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let doctors = [];
+    let latestCall = null;
+    let lastTokens = new Map();
+    
+    function renderDoctorCard(doc, highlighted) {
+      const card = document.createElement('div');
+      card.className = `doctor-card ${highlighted ? 'highlighted' : ''}`;
+      card.innerHTML = `
+        <div class="doctor-name">${doc.doctor_name}</div>
+        ${doc.department || doc.room_number ? `
+          <div class="meta">
+            ${doc.department || ''} ${doc.room_number ? '· Room ' + doc.room_number : ''}
+          </div>` : ''}
+        <div class="token-section">
+          <div class="token-label">Current Token</div>
+          <div class="token">${toMarathi(doc.current_token || 0)}</div>
+          ${doc.waiting_count > 0 ? `<div class="waiting">Waiting: ${toMarathi(doc.waiting_count)}</div>` : ''}
+        </div>
+      `;
+      return card;
+    }
+    
+    // Marathi digits
+    const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+    const toMarathi = (n) => String(n).padStart(3,'0').split('').map(d => marathiDigits[d]).join('');
+    
+    function render() {
+      const grid = $('#doctorGrid');
+      grid.innerHTML = '';
+      
+      if (doctors.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:4rem;">No active doctors</div>';
+        return;
+      }
+      
+      doctors.forEach((doc, i) => {
+        const highlighted = latestCall?.doctorId === doc.doctor_id;
+        grid.appendChild(renderDoctorCard(doc, highlighted));
+      });
+      
+      // Update clinic name
+      if (doctors[0]?.hospital_name) {
+        $('#clinicName').textContent = doctors[0].hospital_name;
+      }
+    }
+    
+    // ============ SUPABASE REALTIME ============
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let doctors = [];
+    let latestCall = null;
+    
+    // Simple TTS
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = 'mr-IN';
+        utt.rate = 0.9;
+        speechSynthesis.speak(utt);
+      }
+    }
+    
+    async function loadData() {
+      const { data, error } = await supabase.rpc('get_public_hospital_queue', { 
+        p_hospital_id: HOSPITAL_ID 
+      });
+      if (error) {
+        console.error('Load error:', error);
+        return;
+      }
+      if (data) {
+        doctors = data.filter(d => d.doctor_id);
+        checkAnnouncements(doctors);
+        render();
+      }
+    }
+    
+    function checkAnnouncements(newDoctors) {
+      newDoctors.forEach(doc => {
+        if (!doc.doctor_id || !doc.current_token) return;
+        const last = lastTokens.get(doc.doctor_id);
+        if (last !== doc.current_token) {
+          lastTokens.set(doc.doctor_id, doc.current_token);
+          if (last !== undefined) {
+            // New call - announce
+            speak(`Token ${toMarathi(doc.current_token)}, please go to room ${doc.room_number || ''}`);
+          }
+        }
+      });
+      newDoctors.forEach(doc => { if (doc.doctor_id) lastTokens.set(doc.doctor_id, doc.current_token); });
+    }
+    
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = 'mr-IN';
+        utt.rate = 0.9;
+        speechSynthesis.speak(utt);
+      }
+    }
+    
+    // Realtime subscription
+    const channel = supabase
+      .channel(`hospital:${HOSPITAL_ID}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'queue_events',
+        filter: `hospital_id=eq.${HOSPITAL_ID}`
+      }, () => loadData())
+      .subscribe();
+    
+    // Initial load
+    await loadData();
+    
+    // Expose for debugging
+    window.__TV_DEBUG__ = { doctors, latestCall, channel, loadData };
+    
+    // Helper functions (defined after use but hoisted)
+    function $(sel, ctx = document) { return ctx.querySelector(sel); }
+    function checkAnnouncements(newDoctors) {
+      newDoctors.forEach(doc => {
+        if (!doc.doctor_id || !doc.current_token) return;
+        const last = lastTokens.get(doc.doctor_id);
+        if (last !== doc.current_token) {
+          lastTokens.set(doc.doctor_id, doc.current_token);
+          if (last !== undefined) {
+            speak(`Token ${toMarathi(doc.current_token)}, please go to room ${doc.room_number || ''}`);
+          }
+        }
+      });
+      newDoctors.forEach(doc => { if (doc.doctor_id) lastTokens.set(doc.doctor_id, doc.current_token); });
+    }
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.lang = 'mr-IN';
+        utt.rate = 0.9;
+        speechSynthesis.speak(utt);
+      }
+    }
+    function $(sel, ctx = document) { return ctx.querySelector(sel); }
+    const marathiDigits = ['०','१','२','३','४','५','६','७','८','९'];
+    const toMarathi = (n) => String(n).padStart(3,'0').split('').map(d => marathiDigits[d]).join('');
+    function renderDoctorCard(doc, highlighted) {
+      const card = document.createElement('div');
+      card.className = `doctor-card ${highlighted ? 'highlighted' : ''}`;
+      card.innerHTML = `
+        <div class="doctor-name">${doc.doctor_name}</div>
+        ${doc.department || doc.room_number ? `
+          <div class="meta">
+            ${doc.department || ''} ${doc.room_number ? '· Room ' + doc.room_number : ''}
+          </div>` : ''}
+        <div class="token-section">
+          <div class="token-label">Current Token</div>
+          <div class="token">${toMarathi(doc.current_token || 0)}</div>
+          ${doc.waiting_count > 0 ? `<div class="waiting">Waiting: ${toMarathi(doc.waiting_count)}</div>` : ''}
+        </div>
+      `;
+      return card;
+    }
+    function render() {
+      const grid = $('#doctorGrid');
+      grid.innerHTML = '';
+      
+      if (doctors.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:4rem;">No active doctors</div>';
+        return;
+      }
+      
+      doctors.forEach((doc, i) => {
+        const highlighted = latestCall?.doctorId === doc.doctor_id;
+        grid.appendChild(renderDoctorCard(doc, highlighted));
+      });
+      
+      if (doctors[0]?.hospital_name) {
+        $('#clinicName').textContent = doctors[0].hospital_name;
+      }
+    }
+  </script>
+</body>
+</html>
