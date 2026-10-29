@@ -128,10 +128,10 @@ export function useTvViewport<T extends HTMLElement>(
       const portrait = screenAspectRatio < 1.1
 
       // Set CSS custom properties
-      shell.style.setProperty('--tv-vw', \`\${width / 100}px\`)
-      shell.style.setProperty('--tv-vh', \`\${height / 100}px\`)
-      shell.style.setProperty('--tv-u', \`\${unit}px\`)
-      shell.style.setProperty('--tv-screen-vh', \`\${screenHeight > 0 ? screenHeight / 100 : height / 100}px\`)
+      shell.style.setProperty('--tv-vw', `${width / 100}px`)
+      shell.style.setProperty('--tv-vh', `${height / 100}px`)
+      shell.style.setProperty('--tv-u', `${unit}px`)
+      shell.style.setProperty('--tv-screen-vh', `${screenHeight > 0 ? screenHeight / 100 : height / 100}px`)
       shell.dataset.tvWide = String(wide)
       shell.dataset.tvUltrawide = String(ultrawide)
       shell.dataset.tvPortrait = String(portrait)
