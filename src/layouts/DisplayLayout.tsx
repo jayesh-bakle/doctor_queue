@@ -115,6 +115,10 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
         // Ensure proper sizing even before JS runs
         minHeight: '100vh',
         minWidth: '100vw',
+        height: '100vh',
+        width: '100vw',
+        maxHeight: '100vh',
+        maxWidth: '100vw',
       }}
     >
       {children}

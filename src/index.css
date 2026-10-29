@@ -479,3 +479,222 @@ body {
   .tv-token-next { font-size: 3rem; }
   .tv-token-next-small { font-size: 2.5rem; }
 }
+
+
+/* ==========================================================================
+   CSS-Only Viewport Fallbacks (Safety Net)
+   ==========================================================================
+   These work even when JavaScript viewport detection fails.
+   They use viewport units directly so text scales with screen size.
+   ========================================================================== */
+
+/* Base viewport-relative sizing for TV when --tv-u is not set correctly */
+@media (min-width: 1280px) {
+  /* Large screen - likely TV */
+  :root:not([data-tv-is-tv="true"]) {
+    /* Fallback token sizes using viewport units directly */
+    --tv-u-fallback: calc(1vw * 0.8); /* ~8px on 1080p, ~16px on 4K */
+  }
+  
+  /* Force minimum token sizes on large screens */
+  .tv-token-banner {
+    font-size: max(4rem, 6vw);
+  }
+  
+  .tv-token-card {
+    font-size: max(5rem, 8vw);
+  }
+  
+  .tv-token-card-large {
+    font-size: max(7rem, 12vw);
+  }
+  
+  .tv-token-next {
+    font-size: max(2.5rem, 3.5vw);
+  }
+  
+  .tv-token-next-small {
+    font-size: max(2rem, 2.5vw);
+  }
+  
+  /* Doctor card text */
+  .tv-card .doctor-name {
+    font-size: max(2rem, 3.5vw);
+  }
+  
+  .tv-card .doctor-meta {
+    font-size: max(1.25rem, 2vw);
+  }
+  
+  .tv-card .token-label {
+    font-size: max(1rem, 1.8vw);
+  }
+  
+  .tv-card .waiting-count {
+    font-size: max(2.5rem, 4vw);
+  }
+  
+  /* Header */
+  .display-header .hospital-name {
+    font-size: max(2.5rem, 4.5vw);
+  }
+  
+  .display-date {
+    font-size: max(1.25rem, 2vw);
+  }
+  
+  /* Banner */
+  .display-banner .now-calling-label {
+    font-size: max(1rem, 1.5vw);
+  }
+  
+  .display-banner .doctor-name {
+    font-size: max(2rem, 3.5vw);
+  }
+  
+  .display-banner .room-info {
+    font-size: max(1.5rem, 2.5vw);
+  }
+  
+  /* Footer */
+  .display-footer p {
+    font-size: max(1.5rem, 2.5vw);
+  }
+  
+  /* Grid gaps */
+  .tv-grid {
+    gap: max(1rem, 2vw);
+  }
+}
+
+/* Even larger screens - 4K and up */
+@media (min-width: 2560px) {
+  .tv-token-banner {
+    font-size: max(5rem, 5vw);
+  }
+  
+  .tv-token-card {
+    font-size: max(6rem, 7vw);
+  }
+  
+  .tv-token-card-large {
+    font-size: max(8rem, 10vw);
+  }
+  
+  .tv-token-next {
+    font-size: max(3rem, 3vw);
+  }
+  
+  .tv-token-next-small {
+    font-size: max(2.5rem, 2.2vw);
+  }
+}
+
+/* High DPI / Retina displays */
+@media (min-resolution: 2dppx) {
+  .tv-token-card-large {
+    font-size: max(8rem, 12vw);
+  }
+}
+
+/* TV-specific: when we KNOW it's a TV */
+[data-tv-is-tv="true"] {
+  /* Minimum token sizes */
+  .tv-token-banner {
+    font-size: max(4rem, calc(var(--tv-u, 8px) * 7));
+  }
+  
+  .tv-token-card {
+    font-size: max(5rem, calc(var(--tv-u, 8px) * 10));
+  }
+  
+  .tv-token-card-large {
+    font-size: max(7rem, calc(var(--tv-u, 8px) * 16));
+  }
+  
+  .tv-token-next {
+    font-size: max(2.5rem, calc(var(--tv-u, 8px) * 4));
+  }
+  
+  .tv-token-next-small {
+    font-size: max(2rem, calc(var(--tv-u, 8px) * 3));
+  }
+  
+  /* Ensure grid fills screen */
+  .tv-grid {
+    min-height: 80vh;
+    align-content: center;
+  }
+  
+  .tv-card {
+    min-height: 0;
+  }
+}
+
+
+/* ==========================================================================
+   Absolute Minimum Token Sizes (Cannot be Overridden)
+   ==========================================================================
+   These ensure tokens are ALWAYS readable, even if all other
+   viewport detection fails completely.
+   ========================================================================== */
+
+@media (min-width: 768px) {
+  /* On any tablet-sized or larger screen, enforce minimum token sizes */
+  .tv-token-banner {
+    font-size: max(4rem, 5vw) !important;
+  }
+  
+  .tv-token-card,
+  .tv-token-card-large {
+    font-size: max(5rem, 8vw) !important;
+  }
+  
+  .tv-token-next,
+  .tv-token-next-small {
+    font-size: max(2.5rem, 3vw) !important;
+  }
+}
+
+/* On TV-sized screens (1080p+), even larger minimums */
+@media (min-width: 1920px) {
+  .tv-token-banner {
+    font-size: max(5rem, 4vw) !important;
+  }
+  
+  .tv-token-card,
+  .tv-token-card-large {
+    font-size: max(7rem, 10vw) !important;
+  }
+  
+  .tv-token-next,
+  .tv-token-next-small {
+    font-size: max(3rem, 2.5vw) !important;
+  }
+}
+
+/* 4K screens */
+@media (min-width: 3840px) {
+  .tv-token-banner {
+    font-size: max(6rem, 3.5vw) !important;
+  }
+  
+  .tv-token-card,
+  .tv-token-card-large {
+    font-size: max(8rem, 8vw) !important;
+  }
+  
+  .tv-token-next,
+  .tv-token-next-small {
+    font-size: max(4rem, 2vw) !important;
+  }
+}
+
+/* Ensure the display layout always fills the screen */
+.display-layout-root,
+[data-tv-initialized="true"] > div {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+}

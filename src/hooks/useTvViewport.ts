@@ -36,10 +36,9 @@ function detectTvOS(): { isTv: boolean; tvOs: string } {
   if (ua.includes('crkey') || ua.includes('google tv') || ua.includes('chromecast')) return { isTv: true, tvOs: 'chromecast' }
   // Generic smart TV indicators
   if (ua.includes('smart-tv') || ua.includes('smarttv') || ua.includes('tv browser') || ua.includes('hbbtv')) return { isTv: true, tvOs: 'generic-tv' }
-  // Large screen detection (4K+ or very large viewport)
-  if (typeof screen !== 'undefined' && screen.width >= 1920 && screen.height >= 1080) {
-    // Could be a TV or large monitor - check for TV-like characteristics
-    if (ua.includes('large screen') || navigator.userAgent.includes('TV')) return { isTv: true, tvOs: 'large-screen' }
+  // Large screen detection - treat as TV if screen is large
+  if (typeof screen !== 'undefined' && screen.width >= 1280 && screen.height >= 720) {
+    return { isTv: true, tvOs: 'large-screen' }
   }
   
   return { isTv: false, tvOs: 'unknown' }
@@ -69,6 +68,17 @@ function getBestViewportDimensions(): { width: number; height: number; screenWid
   }
   if ((!height || height < 200) && screenHeight > 0) {
     height = screenHeight
+  }
+  
+  // For TV: if screen is much larger than viewport, use screen dimensions
+  // This handles TV browsers that report mobile viewport on large screens
+  const { isTv } = detectTvOS()
+  if (isTv && screenWidth > 0 && screenHeight > 0) {
+    if (screenWidth > width * 1.5 || screenHeight > height * 1.5) {
+      // Screen is significantly larger than reported viewport - use screen
+      width = Math.max(width, screenWidth)
+      height = Math.max(height, screenHeight)
+    }
   }
   
   // Clamp to reasonable bounds
@@ -105,7 +115,7 @@ export function useTvViewport<T extends HTMLElement>(
       // For TV, use a more stable unit calculation
       // Base unit on the smaller dimension to ensure readability
       const baseUnit = Math.min(width, height * (16/9)) / 100
-      const unit = isTv ? Math.max(baseUnit, 8) : baseUnit // Minimum 8px unit on TV
+      const unit = isTv ? Math.max(baseUnit, 12) : baseUnit // Minimum 12px unit on TV (increased from 8)
       
       const aspectRatio = height > 0 ? width / height : 0
       const screenAspectRatio = screenWidth > 0 && screenHeight > 0 
@@ -113,19 +123,20 @@ export function useTvViewport<T extends HTMLElement>(
         : aspectRatio
       
       // More generous wide/portrait detection for TV
-      const wide = screenAspectRatio >= 1.4 // Slightly lower threshold
-      const ultrawide = screenAspectRatio >= 1.9
+      const wide = screenAspectRatio >= 1.3 // Slightly lower threshold
+      const ultrawide = screenAspectRatio >= 1.8
       const portrait = screenAspectRatio < 1.1
 
       // Set CSS custom properties
-      shell.style.setProperty('--tv-vw', `${width / 100}px`)
-      shell.style.setProperty('--tv-vh', `${height / 100}px`)
-      shell.style.setProperty('--tv-u', `${unit}px`)
-      shell.style.setProperty('--tv-screen-vh', `${screenHeight > 0 ? screenHeight / 100 : height / 100}px`)
+      shell.style.setProperty('--tv-vw', \`\${width / 100}px\`)
+      shell.style.setProperty('--tv-vh', \`\${height / 100}px\`)
+      shell.style.setProperty('--tv-u', \`\${unit}px\`)
+      shell.style.setProperty('--tv-screen-vh', \`\${screenHeight > 0 ? screenHeight / 100 : height / 100}px\`)
       shell.dataset.tvWide = String(wide)
       shell.dataset.tvUltrawide = String(ultrawide)
       shell.dataset.tvPortrait = String(portrait)
       shell.dataset.tvOs = tvOs
+      shell.dataset.tvIsTv = String(isTv)
 
       setMetrics({
         width,
