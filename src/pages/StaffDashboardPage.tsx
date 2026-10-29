@@ -20,7 +20,6 @@ import { displayUrl } from '../lib/env'
 import { logTechnicalError, toUserMessage } from '../lib/errors'
 import { localizedValue } from '../lib/i18n/content'
 import { countRemaining, deriveSnapshot, findNextWaitingToken } from '../lib/queue'
-import { speak } from '../lib/speech'
 import { cn, todayInTimeZone } from '../lib/utils'
 import { StaffLayout } from '../layouts/StaffLayout'
 import type { QueueEntryView } from '../types/queue'
@@ -99,11 +98,6 @@ export function StaffDashboardPage() {
         return
       }
 
-      // Announced aloud where the button was pressed. The TV page can announce
-      // too; the two toggles are independent, so a clinic that hears it twice
-      // turns one of them off (see README).
-      speak(messages.announcement(result.called_token, result.room_number), { language })
-
       await refresh()
     } catch (caught) {
       logTechnicalError('StaffDashboardPage — callNext', caught)
@@ -116,8 +110,7 @@ export function StaffDashboardPage() {
 
   const handleRecall = (entry: QueueEntryView) =>
     runAction(entry.publicId, async () => {
-      const result = await dataSource.recall(entry.publicId)
-      speak(messages.announcement(result.token_number, result.room_number), { language })
+      await dataSource.recall(entry.publicId)
     })
 
   const handleStart = (entry: QueueEntryView) =>
