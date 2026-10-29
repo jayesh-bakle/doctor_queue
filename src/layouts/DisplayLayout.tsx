@@ -19,9 +19,6 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
       new URLSearchParams(window.location.search).get('tvdebug') === '1',
   )
   
-  // Track if we've initialized the TV styles
-  const [tvInitialized, setTvInitialized] = useState(false)
-
   useLayoutEffect(() => {
     const html = document.documentElement
     const body = document.body
@@ -31,11 +28,14 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
       htmlOverflow: html.style.overflow,
       htmlWidth: html.style.width,
       htmlHeight: html.style.height,
+      htmlMargin: html.style.margin,
+      htmlPadding: html.style.padding,
       bodyBackground: body.style.backgroundColor,
       bodyOverflow: body.style.overflow,
       bodyMargin: body.style.margin,
       bodyWidth: body.style.width,
       bodyHeight: body.style.height,
+      bodyPadding: body.style.padding,
       rootWidth: root?.style.width ?? '',
       rootHeight: root?.style.height ?? '',
     }
@@ -76,8 +76,6 @@ export function DisplayLayout({ children }: { children: ReactNode }) {
       shellRef.current.style.setProperty('--tv-u', '8px')
       shellRef.current.style.setProperty('--tv-screen-vh', '1vh')
     }
-
-    setTvInitialized(true)
 
     return () => {
       html.style.backgroundColor = previous.htmlBackground

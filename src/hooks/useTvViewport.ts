@@ -100,7 +100,6 @@ export function useTvViewport<T extends HTMLElement>(
       }
       lastUpdate = now
 
-      const rect = shell.getBoundingClientRect()
       const { width, height, screenWidth, screenHeight } = getBestViewportDimensions()
       
       // For TV, use a more stable unit calculation
