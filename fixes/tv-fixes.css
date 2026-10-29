@@ -1,0 +1,557 @@
+/*
+=============================================================================
+   TV-Specific CSS Fixes - Add to index.css or create separate tv-fixes.css
+=============================================================================
+*/
+
+/* --------------------------------------------------------------------------
+   1. TV OS Detection & Base Styles
+-------------------------------------------------------------------------- */
+
+/* Apply TV-specific base styles when detected */
+[data-tv-os="tizen"] html,
+[data-tv-os="webos"] html,
+[data-tv-os="android-tv"] html,
+[data-tv-os="fire-tv"] html,
+[data-tv-os="roku"] html,
+[data-tv-os="chromecast"] html,
+[data-tv-os="generic-tv"] html,
+[data-tv-os="large-screen"] html {
+  /* Disable text inflation on TV browsers */
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  
+  /* Ensure crisp font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* Prevent zoom on double-tap (some TV remotes) */
+  touch-action: manipulation;
+}
+
+/* --------------------------------------------------------------------------
+   2. Improved Font Size Calculations for TV
+-------------------------------------------------------------------------- */
+
+/* Base unit with minimum for TV legibility */
+:root {
+  /* Fallback base unit - will be overridden by JS */
+  --tv-u: 8px;
+  --tv-vw: 1vw;
+  --tv-vh: 1vh;
+  --tv-screen-vh: 1vh;
+}
+
+/* Token numerals - improved clamp ranges for TV */
+.token-digits {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1;
+  /* Ensure tabular nums work on older browsers */
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* TV Banner - large token display */
+.tv-token-banner {
+  font-size: 4rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-banner {
+    font-size: clamp(3rem, calc(var(--tv-u, 8px) * 5), 24rem);
+  }
+}
+
+/* TV Card - main token display */
+.tv-token-card {
+  font-size: 5rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-card {
+    font-size: clamp(4rem, calc(var(--tv-u, 8px) * 8), 48rem);
+  }
+}
+
+.tv-token-card-large {
+  font-size: 6rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-card-large {
+    font-size: clamp(5rem, calc(var(--tv-u, 8px) * 12), 72rem);
+  }
+}
+
+/* Next token */
+.tv-token-next {
+  font-size: 2.5rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-next {
+    font-size: clamp(2rem, calc(var(--tv-u, 8px) * 3.4), 20rem);
+  }
+}
+
+.tv-token-next-small {
+  font-size: 2rem;
+}
+
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-next-small {
+    font-size: clamp(1.5rem, calc(var(--tv-u, 8px) * 2.3), 12rem);
+  }
+}
+
+/* Narrow screen adjustments */
+[data-tv-wide='false'] .tv-token-card {
+  font-size: clamp(3.5rem, calc(var(--tv-u, 8px) * 8), 36rem);
+}
+
+[data-tv-wide='false'] .tv-token-card-large {
+  font-size: clamp(4rem, calc(var(--tv-u, 8px) * 11), 48rem);
+}
+
+/* --------------------------------------------------------------------------
+   3. TV Grid System - More Robust
+-------------------------------------------------------------------------- */
+
+/* Base grid classes */
+.tv-grid {
+  display: grid;
+  width: 100%;
+  max-width: 96%;
+  margin-inline: auto;
+  /* Prevent grid overflow */
+  grid-auto-flow: dense;
+}
+
+/* Single column */
+.tv-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+/* Two columns */
+.tv-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Three columns */
+.tv-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Four columns */
+.tv-grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Five cards - special handling */
+.tv-grid-5 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tv-grid-many {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Five card specific classes */
+.tv-card-5 {
+  grid-column: span 1;
+}
+
+/* Wide screen (16:9+) - 6 column track for 5 cards */
+[data-tv-wide='true'] .tv-grid-5 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+[data-tv-wide='true'] .tv-card-5 {
+  grid-column: span 2;
+}
+
+[data-tv-wide='true'] .tv-card-5-start {
+  grid-column: 2 / span 2;
+}
+
+/* Portrait mode - single column */
+[data-tv-portrait='true'] .tv-grid-2,
+[data-tv-portrait='true'] .tv-grid-3,
+[data-tv-portrait='true'] .tv-grid-4,
+[data-tv-portrait='true'] .tv-grid-5,
+[data-tv-portrait='true'] .tv-grid-many {
+  grid-template-columns: 1fr;
+}
+
+[data-tv-portrait='true'] .tv-card-5 {
+  grid-column: span 1;
+}
+
+/* Ultrawide - constrain max width */
+[data-tv-ultrawide='true'] .tv-grid {
+  max-width: min(96%, calc(var(--tv-screen-vh, 1vh) * 210));
+}
+
+/* --------------------------------------------------------------------------
+   4. TV Card Styles - Improved
+-------------------------------------------------------------------------- */
+
+.tv-card {
+  /* Ensure cards don't shrink below content */
+  min-width: 0;
+  min-height: 0;
+  /* Prevent content overflow */
+  overflow: hidden;
+  /* Smooth transitions */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Dense mode (4+ cards) */
+.tv-card.dense {
+  padding: clamp(0.75rem, calc(var(--tv-u, 8px) * 1.2), 2rem);
+}
+
+.tv-card:not(.dense) {
+  padding: clamp(1rem, calc(var(--tv-u, 8px) * 1.8), 3rem);
+}
+
+/* Highlighted card */
+.tv-card.highlighted {
+  background-color: #334155 !important; /* slate-700 */
+  box-shadow: 0 0 0 calc(var(--tv-u, 8px) * 0.35) #2dd4bf !important;
+}
+
+/* Card text sizes */
+.tv-card .doctor-name {
+  font-size: clamp(1.5rem, calc(var(--tv-u, 8px) * 2.4), 4rem);
+  line-height: 1.1;
+  font-weight: 800;
+  color: #5eead4; /* brand-300 */
+}
+
+.tv-card.dense .doctor-name {
+  font-size: clamp(1rem, calc(var(--tv-u, 8px) * 1.6), 2.5rem);
+}
+
+.tv-card .doctor-meta {
+  font-size: clamp(0.9rem, calc(var(--tv-u, 8px) * 1.2), 1.75rem);
+  color: #cbd5e1; /* slate-300 */
+}
+
+.tv-card.dense .doctor-meta {
+  font-size: clamp(0.75rem, calc(var(--tv-u, 8px) * 1), 1.5rem);
+}
+
+/* Token labels */
+.tv-card .token-label {
+  font-size: clamp(0.8rem, calc(var(--tv-u, 8px) * 1.1), 1.75rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8; /* slate-400 */
+}
+
+.tv-card.dense .token-label {
+  font-size: clamp(0.65rem, calc(var(--tv-u, 8px) * 0.85), 1.25rem);
+}
+
+/* Waiting count */
+.tv-card .waiting-count {
+  font-size: clamp(2.5rem, calc(var(--tv-u, 8px) * 4), 6rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+}
+
+.tv-card.dense .waiting-count {
+  font-size: clamp(1.75rem, calc(var(--tv-u, 8px) * 2.8), 4rem);
+}
+
+/* --------------------------------------------------------------------------
+   5. Header & Footer - Compact for Low Height TVs
+-------------------------------------------------------------------------- */
+
+.display-header {
+  padding: clamp(0.75rem, calc(var(--tv-u, 8px) * 1.2), 2rem) clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem);
+  flex-shrink: 0;
+}
+
+.display-header .hospital-name {
+  font-size: clamp(1.5rem, calc(var(--tv-u, 8px) * 2.4), 5rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.display-date {
+  font-size: clamp(0.875rem, calc(var(--tv-u, 8px) * 1.1), 2.5rem);
+  color: #94a3b8; /* slate-400 */
+}
+
+/* Compact header for short screens (720p and below) */
+@media (max-height: 800px) {
+  .display-header {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .display-date {
+    display: none;
+  }
+  
+  .display-banner {
+    margin-top: 0.5rem;
+    min-height: 4rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .display-footer {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .display-footer p {
+    font-size: clamp(0.875rem, calc(var(--tv-u, 8px) * 1.2), 2rem);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Now Calling Banner
+-------------------------------------------------------------------------- */
+
+.display-banner {
+  margin: clamp(0.75rem, calc(var(--tv-u, 8px) * 1.2), 1.5rem) clamp(1rem, calc(var(--tv-u, 8px) * 2), 3rem);
+  min-height: clamp(5rem, calc(var(--tv-vh, 1vh) * 10), 12rem);
+  padding: clamp(0.75rem, calc(var(--tv-u, 8px) * 1.2), 2rem) clamp(1rem, calc(var(--tv-u, 8px) * 2), 3rem);
+  border-radius: clamp(1rem, calc(var(--tv-u, 8px) * 1.5), 2.5rem);
+}
+
+.display-banner .now-calling-label {
+  font-size: clamp(0.75rem, calc(var(--tv-u, 8px) * 1), 1.5rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #5eead4; /* brand-200 */
+}
+
+.display-banner .doctor-name {
+  font-size: clamp(1.5rem, calc(var(--tv-u, 8px) * 2.6), 5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.display-banner .room-info {
+  font-size: clamp(1rem, calc(var(--tv-u, 8px) * 1.4), 2.5rem);
+  color: #5eead4; /* brand-200 */
+}
+
+/* --------------------------------------------------------------------------
+   7. Footer
+-------------------------------------------------------------------------- */
+
+.display-footer {
+  padding: clamp(0.75rem, calc(var(--tv-u, 8px) * 1.2), 2rem) clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem);
+  flex-shrink: 0;
+}
+
+.display-footer p {
+  font-size: clamp(1rem, calc(var(--tv-u, 8px) * 1.6), 3rem);
+  font-weight: 600;
+  line-height: 1.3;
+  color: #cbd5e1; /* slate-300 */
+}
+
+/* --------------------------------------------------------------------------
+   8. TV Controls (Language, Sound toggles)
+-------------------------------------------------------------------------- */
+
+.tv-controls {
+  flex-shrink: 0;
+}
+
+.tv-controls button {
+  min-height: clamp(2.5rem, calc(var(--tv-vh, 1vh) * 4), 4rem);
+  padding-inline: clamp(0.75rem, calc(var(--tv-u, 8px) * 1), 1.5rem);
+  font-size: clamp(0.9rem, calc(var(--tv-u, 8px) * 1.1), 1.75rem);
+  border-radius: 0.5rem;
+}
+
+.tv-controls button svg {
+  width: clamp(1rem, calc(var(--tv-u, 8px) * 1.4), 2rem);
+  height: clamp(1rem, calc(var(--tv-u, 8px) * 1.4), 2rem);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   9. Animation - Token Flash
+-------------------------------------------------------------------------- */
+
+@keyframes token-flash {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  25% {
+    transform: scale(1.06);
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.token-flash {
+  animation: token-flash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-flash {
+    animation: none;
+  }
+}
+
+/* Page transition */
+@keyframes display-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.display-page-enter {
+  animation: display-page-enter 350ms ease-out;
+}
+
+/* --------------------------------------------------------------------------
+   10. Print Styles
+-------------------------------------------------------------------------- */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: #fff;
+  }
+  
+  .print-poster {
+    box-shadow: none !important;
+    border: 2px solid #0f766e !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  @page {
+    margin: 12mm;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   11. Accessibility & Fallbacks
+-------------------------------------------------------------------------- */
+
+/* Ensure content is visible even if CSS custom properties fail */
+@supports not (font-size: clamp(1rem, 1vw, 2rem)) {
+  .tv-token-banner { font-size: 4rem; }
+  .tv-token-card { font-size: 5rem; }
+  .tv-token-card-large { font-size: 6rem; }
+  .tv-token-next { font-size: 2.5rem; }
+  .tv-token-next-small { font-size: 2rem; }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tv-card.highlighted {
+    border: 4px solid #ffffff;
+  }
+  
+  .token-digits {
+    font-weight: 900;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   12. Focus Styles for TV Remote Navigation
+-------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 4px solid #2dd4bf; /* brand-400 */
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* TV remote focus indicator */
+.tv-card:focus-visible,
+.tv-controls button:focus-visible {
+  outline: 4px solid #2dd4bf;
+  outline-offset: 4px;
+  z-index: 10;
+}
+
+/* --------------------------------------------------------------------------
+   13. Safe Area Insets (for notched TV screens)
+-------------------------------------------------------------------------- */
+
+@supports (padding: max(0px)) {
+  .display-header {
+    padding-left: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-left));
+    padding-right: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-right));
+  }
+  
+  .display-footer {
+    padding-left: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-left));
+    padding-right: max(clamp(1rem, calc(var(--tv-u, 8px) * 2), 4rem), env(safe-area-inset-right));
+  }
+  
+  .tv-grid {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* --------------------------------------------------------------------------
+   14. Font Loading Optimization
+-------------------------------------------------------------------------- */
+
+/* Preload critical fonts in HTML head instead */
+/* This is a fallback if preload fails */
+@font-face {
+  font-family: 'Noto Sans Devanagari Fallback';
+  src: local('Noto Sans Devanagari'), local('Noto Sans');
+  font-display: swap;
+  unicode-range: U+0900-097F, U+1CD0-1CF6, U+1CF8-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC;
+}
+
+@font-face {
+  font-family: 'Noto Sans Gujarati Fallback';
+  src: local('Noto Sans Gujarati'), local('Noto Sans');
+  font-display: swap;
+  unicode-range: U+0A80-0AFF, U+1CD0-1CF6, U+1CF8-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC;
+}
+
+/* Ensure system font fallback works */
+body {
+  font-family: 'Noto Sans Devanagari', 'Noto Sans Gujarati', 
+               'Noto Sans Devanagari Fallback', 'Noto Sans Gujarati Fallback',
+               ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

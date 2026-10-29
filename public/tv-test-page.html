@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <title>TV UI Test - Doctor Queue System</title>
+  <style>
+    /* TV Test Page Styles */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Noto Sans Devanagari', 'Noto Sans Gujarati', ui-sans-serif, system-ui, sans-serif;
+      background: #0f172a;
+      color: #ffffff;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: clamp(2rem, 4vw, 4rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #5eead4;
+    }
+    
+    .section {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .section h2 {
+      font-size: clamp(1.25rem, 2.5vw, 2rem);
+      color: #5eead4;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #334155;
+    }
+    
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    
+    @media (max-width: 900px) {
+      .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 600px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+    
+    .metric-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1rem;
+    }
+    
+    .metric-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+    
+    .metric-value {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #5eead4;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+    
+    .metric-value.warning { color: #fbbf24; }
+    .metric-value.error { color: #f87171; }
+    .metric-value.success { color: #4ade80; }
+    
+    .tv-detection {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .badge.tv { background: #0d9488; color: white; }
+    .badge.desktop { background: #3b82f6; color: white; }
+    .badge.mobile { background: #8b5cf6; color: white; }
+    .badge.unknown { background: #6b7280; color: white; }
+    
+    .token-demo {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      align-items: center;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    
+    .token-box {
+      background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+      border: 2px solid #14b8a6;
+      border-radius: 1rem;
+      padding: 2rem 3rem;
+      text-align: center;
+      min-width: 200px;
+    }
+    
+    .token-label {
+      font-size: clamp(0.75rem, 1.5vw, 1rem);
+      color: #5eead4;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    
+    .token-value {
+      font-size: clamp(3rem, 8vw, 8rem);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: #ffffff;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+    
+    .grid-demo {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .doctor-card-demo {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    
+    .doctor-card-demo:hover,
+    .doctor-card-demo.highlighted {
+      background: #334155;
+      border-color: #14b8a6;
+      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.3);
+    }
+    
+    .doctor-name {
+      font-size: clamp(1.25rem, 2vw, 2rem);
+      font-weight: 800;
+      color: #5eead4;
+      margin-bottom: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .doctor-meta {
+      font-size: clamp(0.75rem, 1.2vw, 1rem);
+      color: #94a3b8;
+      margin-bottom: 1rem;
+    }
+    
+    .token-row {
+      display: flex;
+      justify-content: space-around;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .token-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .token-col-label {
+      font-size: clamp(0.6rem, 1vw, 0.8rem);
+      text-transform: uppercase;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    
+    .token-col-value {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #ffffff;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    }
+    
+    .waiting-count {
+      font-size: clamp(2rem, 4vw, 3.5rem) !important;
+    }
+    
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding: 1rem;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+    
+    .code-block {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+      font-size: 0.75rem;
+      overflow-x: auto;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+    
+    .highlight { color: #5eead4; }
+    .string { color: #4ade80; }
+    .comment { color: #64748b; }
+    .keyword { color: #c084fc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📺 TV UI Test Dashboard</h1>
+    <p style="color: #94a3b8; margin-bottom: 2rem;">Test page for diagnosing TV browser viewport and rendering issues</p>
+    
+    <!-- Section 1: Viewport Metrics -->
+    <section class="section" id="viewport-metrics">
+      <h2>📐 Viewport Metrics</h2>
+      <div class="grid-4" id="viewport-grid">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+    
+    <!-- Section 2: TV OS Detection -->
+    <section class="section" id="tv-detection">
+      <h2>🖥️ TV OS Detection</h2>
+      <div id="detection-results">
+        <!-- Populated by JS -->
+      </div>
+      <div class="code-block" id="user-agent">
+        <!-- User agent string -->
+      </div>
+    </section>
+    
+    <!-- Section 3: CSS Custom Properties -->
+    <section class="section" id="css-props">
+      <h2>🎨 CSS Custom Properties (--tv-*)</h2>
+      <div class="grid-4" id="css-props-grid">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+    
+    <!-- Section 4: Token Display Test -->
+    <section class="section" id="token-test">
+      <h2>🔢 Token Display Test</h2>
+      <p style="color: #94a3b8; margin-bottom: 1rem;">These should be crisp, tabular numerals that don't shift width when counting:</p>
+      <div class="token-demo">
+        <div class="token-box">
+          <div class="token-label">Current Token</div>
+          <div class="token-value token-digits" id="token-current">042</div>
+        </div>
+        <div class="token-box">
+          <div class="token-label">Next Token</div>
+          <div class="token-value token-digits" id="token-next">043</div>
+        </div>
+        <div class="token-box">
+          <div class="token-label">Waiting</div>
+          <div class="token-value token-digits" id="token-waiting">12</div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 1rem;">
+        <button onclick="animateTokenFlash()" style="padding: 0.75rem 2rem; background: #0d9488; color: white; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer;">Test Token Flash Animation</button>
+      </div>
+    </section>
+    
+    <!-- Section 5: Doctor Card Grid Test -->
+    <section class="section" id="grid-test">
+      <h2>🏥 Doctor Card Grid Test</h2>
+      <p style="color: #94a3b8; margin-bottom: 1rem;">Test different grid layouts (resize window to see responsive behavior):</p>
+      <div class="grid-demo" id="doctor-grid">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+    
+    <!-- Section 6: Font Rendering Test -->
+    <section class="section" id="font-test">
+      <h2>🔤 Font Rendering Test</h2>
+      <div class="grid-3">
+        <div class="metric-card">
+          <div class="metric-label">Devanagari (Marathi)</div>
+          <div class="metric-value" style="font-size: 2rem; font-family: 'Noto Sans Devanagari', sans-serif;">संदीप जाधव</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Gujarati</div>
+          <div class="metric-value" style="font-size: 2rem; font-family: 'Noto Sans Gujarati', sans-serif;">સંદીપ જાધવ</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">English</div>
+          <div class="metric-value" style="font-size: 2rem;">Sandeep Jadhav</div>
+        </div>
+      </div>
+      
+      <div class="grid-3" style="margin-top: 1rem;">
+        <div class="metric-card">
+          <div class="metric-label">Token (Devanagari)</div>
+          <div class="metric-value token-digits" style="font-family: 'Noto Sans Devanagari', sans-serif;">०४२</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Token (Gujarati)</div>
+          <div class="metric-value token-digits" style="font-family: 'Noto Sans Gujarati', sans-serif;">૦૪૨</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Token (Latin)</div>
+          <div class="metric-value token-digits">042</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Section 7: Recommendations -->
+    <section class="section" id="recommendations">
+      <h2>✅ Recommendations for TV Deployment</h2>
+      <div id="recommendations-list"></div>
+    </section>
+    
+    <footer class="footer">
+      <p>Doctor Queue System - TV UI Test Page</p>
+      <p>Open this page on your TV browser and check all metrics above</p>
+    </footer>
+  </div>
+
+  <script>
+    // Populate viewport metrics
+    function updateViewportMetrics() {
+      const visualViewport = window.visualViewport;
+      const screen = window.screen;
+      const docEl = document.documentElement;
+      
+      const metrics = [
+        { label: 'innerWidth', value: window.innerWidth, unit: 'px' },
+        { label: 'innerHeight', value: window.innerHeight, unit: 'px' },
+        { label: 'clientWidth', value: docEl.clientWidth, unit: 'px' },
+        { label: 'clientHeight', value: docEl.clientHeight, unit: 'px' },
+        { label: 'screen.width', value: screen?.width || 'N/A', unit: 'px' },
+        { label: 'screen.height', value: screen?.height || 'N/A', unit: 'px' },
+        { label: 'devicePixelRatio', value: window.devicePixelRatio || 1, unit: 'x' },
+        { label: 'visualViewport.width', value: visualViewport?.width || 'N/A', unit: 'px' },
+        { label: 'visualViewport.height', value: visualViewport?.height || 'N/A', unit: 'px' },
+        { label: 'visualViewport.scale', value: visualViewport?.scale || 'N/A', unit: 'x' },
+        { label: 'Aspect Ratio (inner)', value: (window.innerWidth / window.innerHeight).toFixed(2), unit: '' },
+        { label: 'Aspect Ratio (screen)', value: screen && screen.width && screen.height ? (screen.width / screen.height).toFixed(2) : 'N/A', unit: '' },
+      ];
+      
+      const grid = document.getElementById('viewport-grid');
+      grid.innerHTML = metrics.map(m => `
+        <div class="metric-card">
+          <div class="metric-label">${m.label}</div>
+          <div class="metric-value">${m.value}${m.unit ? ' <span style="font-size: 0.5em; font-weight: 400; color: #64748b;">' + m.unit + '</span>' : ''}</div>
+        </div>
+      `).join('');
+    }
+    
+    // TV OS Detection
+    function detectTvOS() {
+      const ua = navigator.userAgent.toLowerCase();
+      let isTv = false;
+      let tvOs = 'unknown';
+      let badges = [];
+      
+      if (ua.includes('tizen')) { isTv = true; tvOs = 'tizen'; badges.push({text: 'Tizen (Samsung)', class: 'badge tv'}); }
+      else if (ua.includes('webos') || ua.includes('web0s')) { isTv = true; tvOs = 'webos'; badges.push({text: 'webOS (LG)', class: 'badge tv'}); }
+      else if (ua.includes('android') && (ua.includes('tv') || ua.includes('googletv') || ua.includes('aft'))) { isTv = true; tvOs = 'android-tv'; badges.push({text: 'Android TV', class: 'badge tv'}); }
+      else if (ua.includes('firetv') || ua.includes('aft') || (ua.includes('android') && ua.includes('silk'))) { isTv = true; tvOs = 'fire-tv'; badges.push({text: 'Fire TV', class: 'badge tv'}); }
+      else if (ua.includes('roku')) { isTv = true; tvOs = 'roku'; badges.push({text: 'Roku', class: 'badge tv'}); }
+      else if (ua.includes('crkey') || ua.includes('google tv') || ua.includes('chromecast')) { isTv = true; tvOs = 'chromecast'; badges.push({text: 'Chromecast/Google TV', class: 'badge tv'}); }
+      else if (ua.includes('smart-tv') || ua.includes('smarttv') || ua.includes('tv browser') || ua.includes('hbbtv')) { isTv = true; tvOs = 'generic-tv'; badges.push({text: 'Generic Smart TV', class: 'badge tv'}); }
+      else if (screen.width >= 1920 && screen.height >= 1080) {
+        if (ua.includes('large screen') || navigator.userAgent.includes('TV')) { isTv = true; tvOs = 'large-screen'; badges.push({text: 'Large Screen (Possible TV)', class: 'badge tv'}); }
+      }
+      
+      if (!isTv) {
+        if (/mobile|android|iphone|ipad/.test(ua)) badges.push({text: 'Mobile', class: 'badge mobile'});
+        else badges.push({text: 'Desktop', class: 'badge desktop'});
+      }
+      
+      return { isTv, tvOs, badges, ua };
+    }
+    
+    function updateDetection() {
+      const detection = detectTvOS();
+      const container = document.getElementById('detection-results');
+      
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+          <span style="font-size: 1.25rem; font-weight: 600;">Detected: </span>
+          <span class="${detection.isTv ? 'badge tv' : 'badge desktop'}">${detection.isTv ? 'TV Browser' : 'Desktop/Mobile Browser'}</span>
+          <span class="badge ${detection.isTv ? 'tv' : 'unknown'}">${detection.tvOs.toUpperCase()}</span>
+        </div>
+        <div class="tv-detection">
+          ${detection.badges.map(b => `<span class="${b.class}">${b.text}</span>`).join('')}
+        </div>
+      `;
+      
+      document.getElementById('user-agent').textContent = detection.ua;
+      
+      // Set data attribute on html for CSS targeting
+      document.documentElement.dataset.tvOs = detection.tvOs;
+      document.documentElement.dataset.isTv = detection.isTv;
+    }
+    
+    // CSS Custom Properties
+    function updateCssProps() {
+      const style = getComputedStyle(document.documentElement);
+      const props = [
+        '--tv-u', '--tv-vw', '--tv-vh', '--tv-screen-vh',
+        '--color-brand-500', '--color-brand-600', '--color-brand-700'
+      ];
+      
+      const grid = document.getElementById('css-props-grid');
+      grid.innerHTML = props.map(prop => `
+        <div class="metric-card">
+          <div class="metric-label">${prop}</div>
+          <div class="metric-value" style="font-size: 1rem; font-family: monospace;">${style.getPropertyValue(prop).trim() || '(not set)'}</div>
+        </div>
+      `).join('');
+    }
+    
+    // Doctor Grid Demo
+    function updateDoctorGrid() {
+      const doctors = [
+        { name: 'डॉ. संदीप जाधव', dept: 'General Medicine', room: '101', current: 42, next: 43, waiting: 12 },
+        { name: 'Dr. Priya Sharma', dept: 'Pediatrics', room: '102', current: 15, next: 16, waiting: 8 },
+        { name: 'डॉ. राजेश पटेल', dept: 'Orthopedics', room: '103', current: 7, next: 8, waiting: 5 },
+        { name: 'Dr. Anita Desai', dept: 'Cardiology', room: '104', current: 23, next: 24, waiting: 15 },
+        { name: 'Dr. Vikram Singh', dept: 'Dermatology', room: '105', current: 3, next: 4, waiting: 3 },
+        { name: 'Dr. Meera Nair', dept: 'Neurology', room: '106', current: 9, next: 10, waiting: 7 },
+      ];
+      
+      const grid = document.getElementById('doctor-grid');
+      grid.innerHTML = doctors.map((doc, i) => `
+        <div class="doctor-card-demo ${i === 0 ? 'highlighted' : ''}" tabindex="0">
+          <div class="doctor-name">${doc.name}</div>
+          <div class="doctor-meta">${doc.dept} ${doc.room ? '· Room ' + doc.room : ''}</div>
+          <div class="token-row">
+            <div class="token-col">
+              <div class="token-col-label">Current</div>
+              <div class="token-col-value token-digits">${String(doc.current).padStart(3, '0')}</div>
+            </div>
+            <div class="token-col">
+              <div class="token-col-label">Next</div>
+              <div class="token-col-value token-digits">${String(doc.next).padStart(3, '0')}</div>
+            </div>
+            <div class="token-col">
+              <div class="token-col-label">Waiting</div>
+              <div class="token-col-value token-digits waiting-count">${doc.waiting}</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // Token flash animation
+    function animateTokenFlash() {
+      const elements = document.querySelectorAll('.token-value');
+      elements.forEach(el => {
+        el.classList.add('token-flash');
+        setTimeout(() => el.classList.remove('token-flash'), 900);
+      });
+    }
+    
+    // Recommendations
+    function updateRecommendations() {
+      const detection = detectTvOS();
+      const visualViewport = window.visualViewport;
+      const screen = window.screen;
+      const dpr = window.devicePixelRatio || 1;
+      
+      const recs = [];
+      
+      if (detection.isTv) {
+        recs.push({ type: 'success', text: `TV OS detected: ${detection.tvOs}. TV-specific optimizations will apply.` });
+        
+        if (detection.tvOs === 'tizen') {
+          recs.push({ type: 'info', text: 'Samsung Tizen: Ensure "Web Browser" app is updated. Disable "Auto Zoom" in browser settings if available.' });
+        } else if (detection.tvOs === 'webos') {
+          recs.push({ type: 'info', text: 'LG webOS: Use the built-in browser. Check "Desktop Mode" setting for better viewport handling.' });
+        } else if (detection.tvOs === 'android-tv') {
+          recs.push({ type: 'info', text: 'Android TV: Use Chrome or Firefox. Enable "Desktop site" in browser settings for consistent viewport.' });
+        } else if (detection.tvOs === 'fire-tv') {
+          recs.push({ type: 'info', text: 'Fire TV: Use Silk Browser. May need to sideload Firefox for better standards support.' });
+        }
+      } else {
+        recs.push({ type: 'warning', text: 'No TV OS detected. This appears to be a desktop/mobile browser. TV-specific CSS may not activate.' });
+      }
+      
+      // Check viewport issues
+      if (window.innerWidth < 1000 && screen.width >= 1920) {
+        recs.push({ type: 'error', text: `Viewport width (${window.innerWidth}px) much smaller than screen width (${screen.width}px). TV browser may be reporting incorrect viewport. Use visualViewport API.` });
+      }
+      
+      if (visualViewport && visualViewport.width !== window.innerWidth) {
+        recs.push({ type: 'warning', text: `visualViewport (${visualViewport.width}px) differs from innerWidth (${window.innerWidth}px). Use visualViewport for accurate measurements.` });
+      }
+      
+      if (dpr > 1.5) {
+        recs.push({ type: 'info', text: `High DPR (${dpr}x) detected. CSS pixels are scaled. Ensure clamp() calculations account for this.` });
+      }
+      
+      // Check CSS custom properties
+      const style = getComputedStyle(document.documentElement);
+      const tvU = parseFloat(style.getPropertyValue('--tv-u')) || 0;
+      if (tvU < 8) {
+        recs.push({ type: 'error', text: `--tv-u (${tvU}px) is below minimum 8px. Token text may be too small to read from distance.` });
+      }
+      
+      const container = document.getElementById('recommendations-list');
+      container.innerHTML = recs.map(r => `
+        <div style="padding: 1rem; margin: 0.5rem 0; border-radius: 0.5rem; background: ${r.type === 'error' ? '#7f1d1d' : r.type === 'warning' ? '#78350f' : r.type === 'success' ? '#064e3b' : '#1e3a5f'}; border-left: 4px solid ${r.type === 'error' ? '#ef4444' : r.type === 'warning' ? '#f59e0b' : r.type === 'success' ? '#10b981' : '#3b82f6'};">
+          <strong>${r.type.toUpperCase()}:</strong> ${r.text}
+        </div>
+      `).join('');
+    }
+    
+    // Initialize
+    function init() {
+      updateViewportMetrics();
+      updateDetection();
+      updateCssProps();
+      updateDoctorGrid();
+      updateRecommendations();
+      
+      // Update on resize
+      window.addEventListener('resize', () => {
+        updateViewportMetrics();
+        updateCssProps();
+        updateRecommendations();
+      });
+      
+      // Update on visualViewport change
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          updateViewportMetrics();
+          updateCssProps();
+          updateRecommendations();
+        });
+      }
+      
+      // Update CSS props periodically (they're set by the main app)
+      setInterval(updateCssProps, 1000);
+    }
+    
+    // Run on load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
